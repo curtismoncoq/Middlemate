@@ -1,4 +1,4 @@
-import { contract, Keypair } from '@stellar/stellar-sdk';
+import { contract, Keypair, rpc, TransactionBuilder } from '@stellar/stellar-sdk';
 import type { Config } from '@tb/config';
 import type { Listing, RegistryClient, TxResult } from './types.ts';
 
@@ -29,7 +29,7 @@ const toListing = (r: RawListing): Listing => ({
 function unwrap<T>(value: unknown): T {
   const v = value as { isErr?: () => boolean; unwrap?: () => T; unwrapErr?: () => { message: string } };
   if (v && typeof v.isErr === 'function') {
-    if (v.isErr()) throw new Error(v.unwrapErr!().message);
+    if (v.isErr()) throw new Error(v.unwrapErr!().message || 'contract rejected the call (already registered, not registered, or amount <= 0)');
     return v.unwrap!();
   }
   return value as T;
@@ -99,4 +99,34 @@ export function createOnchainRegistry(cfg: Pick<Config, 'rpcUrl' | 'networkPassp
       return { hash };
     },
   };
+}
+
+type ChainCfg = Pick<Config, 'rpcUrl' | 'networkPassphrase' | 'registryContractId'>;
+export type WalletCall =
+  | { method: 'register'; args: { name: string; endpoint: string; claimedModel: string; priceAtomic: bigint } }
+  | { method: 'stake'; args: { amountAtomic: bigint } };
+
+/** Simulates a provider call and returns the unsigned transaction XDR for a browser wallet to sign. */
+export async function buildUnsignedTx(cfg: ChainCfg, publicKey: string, call: WalletCall): Promise<string> {
+  const c = await contract.Client.from<RegistryMethods>({ contractId: cfg.registryContractId!, rpcUrl: cfg.rpcUrl, networkPassphrase: cfg.networkPassphrase, publicKey });
+  const tx =
+    call.method === 'register'
+      ? await c.register({ provider: publicKey, name: call.args.name, endpoint: call.args.endpoint, claimed_model: call.args.claimedModel, price: call.args.priceAtomic })
+      : await c.stake({ provider: publicKey, amount: call.args.amountAtomic });
+  unwrap(tx.result); // e.g. AlreadyRegistered surfaces here, before the wallet prompt
+  return tx.toXDR();
+}
+
+/** Submits a wallet-signed transaction and waits for it to land. */
+export async function submitSignedTx(cfg: ChainCfg, signedXdr: string): Promise<TxResult> {
+  const server = new rpc.Server(cfg.rpcUrl);
+  const sent = await server.sendTransaction(TransactionBuilder.fromXDR(signedXdr, cfg.networkPassphrase));
+  if (sent.status === 'ERROR') throw new Error(`submit failed: ${JSON.stringify(sent.errorResult ?? sent)}`);
+  for (let i = 0; i < 30; i++) {
+    const got = await server.getTransaction(sent.hash);
+    if (got.status === 'SUCCESS') return { hash: sent.hash };
+    if (got.status === 'FAILED') throw new Error(`transaction ${sent.hash} failed`);
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  throw new Error(`transaction ${sent.hash} not confirmed after 30s`);
 }

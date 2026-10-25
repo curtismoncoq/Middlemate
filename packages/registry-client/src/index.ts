@@ -6,6 +6,7 @@ import type { RegistryClient } from './types.ts';
 
 export * from './types.ts';
 export { createOffchainRegistry, createOnchainRegistry };
+export { buildUnsignedTx, submitSignedTx, type WalletCall } from './onchain.ts';
 
 export const OFFCHAIN_FILE = path.join(REPO_ROOT, 'data/registry.offchain.json');
 

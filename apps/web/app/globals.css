@@ -121,3 +121,12 @@ a { color: var(--teal); }
 .bubble--assistant { align-self: flex-start; background: var(--teal-soft); }
 .tryit__compose { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
 .tryit__compose textarea { flex: 1; font: inherit; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; resize: none; background: #fff; }
+
+/* list form */
+.narrow { max-width: 620px; }
+.listform { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; }
+.listform__row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 4px; font-weight: 500; }
+.field input { font: inherit; font-weight: 400; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.listform .btn { align-self: flex-start; }
+@media (max-width: 520px) { .listform__row { grid-template-columns: 1fr; } }

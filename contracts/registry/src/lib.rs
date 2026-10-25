@@ -17,8 +17,11 @@ const AUDITOR: Symbol = symbol_short!("auditor");
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum Error {
+    /// AlreadyRegistered
     AlreadyRegistered = 1,
+    /// NotRegistered
     NotRegistered = 2,
+    /// NonPositiveAmount
     NonPositiveAmount = 3,
 }
 
