@@ -1,0 +1,7 @@
+Machines Are Starting to Pay Each Other
+
+For decades, paying for an online service meant creating an account, entering a card number and agreeing to a monthly plan. That model assumes a human is on the other side. AI agents break that assumption: an agent that needs a translation, a weather forecast or a few seconds of GPU time cannot fill in a signup form, and it should not hold a long-lived API key with unlimited spend.
+
+A new family of protocols lets software pay per request instead. When an agent calls a paid endpoint, the server answers with HTTP status 402, "Payment Required", along with a price. The agent signs a small payment, retries the request, and gets its answer a few seconds later. No account, no subscription, and the seller is paid immediately.
+
+The catch is trust. A buyer that pays per request has no way to know whether it received what was advertised. A seller could promise a large, expensive model and quietly serve a cheap one. Humans might notice the drop in quality; an autonomous agent running thousands of calls usually will not. Researchers argue that pay-per-request markets will need independent auditing, staking and penalties before businesses let agents spend real money in them.

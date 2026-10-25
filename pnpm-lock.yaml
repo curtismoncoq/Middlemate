@@ -34,6 +34,18 @@ importers:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@24.19.2)(tsx@4.23.15)
 
+  apps/agent:
+    dependencies:
+      '@tb/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@tb/registry-client':
+        specifier: workspace:*
+        version: link:../../packages/registry-client
+      '@tb/x402-client':
+        specifier: workspace:*
+        version: link:../../packages/x402-client
+
   apps/auditor:
     dependencies:
       '@tb/config':
