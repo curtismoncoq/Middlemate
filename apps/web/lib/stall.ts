@@ -55,3 +55,12 @@ export function streetStatus(listings: ApiListing[], audit: AuditStatus, now: nu
   const audited = live.filter((l) => stallView(l).state === 'open').length;
   return audited === live.length ? `All ${stalls(live.length)} audited.` : `${audited} of ${stalls(live.length)} audited.`;
 }
+
+/** One stall per listing: the listing ID, or the wallet for legacy provider-keyed listings. */
+export const stallKey = (l: Pick<ApiListing, 'id' | 'provider'>) => l.id ?? l.provider;
+
+/** Probe progress for this listing, when it is the one under audit. */
+export function auditingFor(l: ApiListing, audit: AuditStatus) {
+  const c = audit.current;
+  return c && (c.listingId ?? c.provider) === stallKey(l) ? c : undefined;
+}

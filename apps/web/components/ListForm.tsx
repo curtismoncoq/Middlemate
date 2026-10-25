@@ -10,7 +10,6 @@ import { txUrl } from '../lib/types.ts';
 import { capabilitiesUrl, validateWeatherCapabilities, WEATHER_FIELDS, WEATHER_SCHEMA_ID } from '@tb/weather-contract';
 
 type Step = { label: string; hash?: string };
-const localWeatherDemo = process.env.NEXT_PUBLIC_WEATHER_DEMO === '1';
 const weatherResponseFields = WEATHER_FIELDS.filter((f) => f.group === 'response');
 
 async function api(body: unknown) {
@@ -36,12 +35,12 @@ export function ListForm({ models }: { models: ModelOption[] }) {
   const [supportedFields, setSupportedFields] = useState<string[]>(['forecast.temperatureC']);
 
   const field = (k: Exclude<keyof ListingInput, 'allowUnverifiable'>, label: string, placeholder: string, help?: string) => (
-    <label className="field">
-      <span>{label}</span>
-      <input value={form[k]} placeholder={placeholder} aria-describedby={help ? `${k}-help` : undefined} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
+    <div className="field">
+      <label htmlFor={`field-${k}`}>{label}</label>
+      <input id={`field-${k}`} value={form[k]} placeholder={placeholder} aria-describedby={help ? `${k}-help` : undefined} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
       {help && <small id={`${k}-help`} className="field__help">{help}</small>}
       {errors[k] && <small className="field__error">{errors[k]}</small>}
-    </label>
+    </div>
   );
 
   const submit = async (e: React.FormEvent) => {
@@ -76,8 +75,8 @@ export function ListForm({ models }: { models: ModelOption[] }) {
         setSteps((s) => [...s.slice(0, -1), { label, hash }]);
       };
       const { stakeAtomic, ...listing } = v.value;
-      await run('Registered', { method: 'register', args: listing });
-      await run(`Staked ${form.stakeUsdc} USDC`, { method: 'stake', args: { amountAtomic: stakeAtomic } });
+      const id = Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('');
+      await run(`Registered & staked ${form.stakeUsdc} USDC`, { method: 'registerEndpoint', args: { ...listing, id, amountAtomic: stakeAtomic } });
       setTimeout(() => router.push('/'), 1500);
     } catch (err) {
       setFail((err as Error).message);
@@ -89,7 +88,7 @@ export function ListForm({ models }: { models: ModelOption[] }) {
   const verifiable = category === 'inference' && choice !== OTHER;
   const draft = draftListing(form, verifiable);
   const stake = Number(form.stakeUsdc) > 0 ? Number(form.stakeUsdc) : 0;
-  const [register, staking] = [steps[0], steps[1]];
+  const signed = steps[0];
   const stepState = (s?: Step) => (s?.hash ? 'is-done' : s ? 'is-waiting' : '');
   const txLink = (s?: Step) => s?.hash && <a href={txUrl(s.hash)} target="_blank" rel="noreferrer">tx {s.hash.slice(0, 6)}…</a>;
 
@@ -148,8 +147,8 @@ export function ListForm({ models }: { models: ModelOption[] }) {
         {field('stakeUsdc', 'Stake (USDC)', '5')}
       </div>
       <div className="listform__submit">
-        <button className="btn btn--lime" disabled={busy}>{busy ? 'Signing…' : w.address ? 'Register & stake' : 'Connect wallet to list'}</button>
-        <p className="muted">{localWeatherDemo && category === 'weather' ? 'The weather endpoint is a local fixture. Registration and stake are submitted to the Stellar Testnet registry and require wallet approval.' : 'Stake is locked in the registry while you are listed. It is refunded when the listing is unregistered, unless it was slashed.'}</p>
+        <button className="btn btn--lime" disabled={busy || w.restoring}>{w.restoring ? 'Reconnecting…' : busy ? 'Signing…' : w.address ? 'Register & stake' : 'Connect wallet to list'}</button>
+        <p className="muted">One wallet signature registers the listing and locks its stake. One wallet can list several endpoints; remove one from Dashboard, then withdraw after the onchain grace period.</p>
       </div>
       {fail && <p className="field__error" role="alert">{fail}</p>}
     </form>
@@ -163,15 +162,11 @@ export function ListForm({ models }: { models: ModelOption[] }) {
         <h2>After you submit</h2>
         <p className="atrisk"><span className="num">{`${stake.toLocaleString('en-US')} USDC`}</span> at stake if your answers don&apos;t match {category === 'weather' ? 'your contract' : 'the model you claim'}.</p>
         <ol className="track">
-          <li className={stepState(register)}>
-            <b>Register the listing</b>
-            <span>{register?.hash ? txLink(register) : register ? 'Waiting for your wallet…' : 'Signed in your wallet, written to the Soroban registry.'}</span>
+          <li className={stepState(signed)}>
+            <b>{`Register & stake ${stake.toLocaleString('en-US')} USDC`}</b>
+            <span>{signed?.hash ? txLink(signed) : signed ? 'Waiting for your wallet…' : 'One signature in your wallet; the stake is locked in the Soroban registry.'}</span>
           </li>
-          <li className={stepState(staking)}>
-            <b>{`Stake ${stake.toLocaleString('en-US')} USDC`}</b>
-            <span>{staking?.hash ? txLink(staking) : staking ? 'Waiting for your wallet…' : 'Locked in the registry while you are listed.'}</span>
-          </li>
-          <li className={staking?.hash ? 'is-waiting' : ''}>
+          <li className={signed?.hash ? 'is-waiting' : ''}>
             <b>Audit on entry</b>
             <span>{category === 'weather' ? 'API listings show their declared schema; their data audit is future work.' : 'The auditor buys hidden probes at your price and fingerprints the answers. You show as Under review until it finishes.'}</span>
           </li>

@@ -12,7 +12,7 @@ export function ConnectWallet() {
   }
   return (
     <span className="wallet">
-      <button className="wallet__btn" onClick={w.connect}>Connect</button>
+      <button className="wallet__btn" onClick={w.connect} disabled={w.restoring}>{w.restoring ? 'Reconnecting…' : 'Connect'}</button>
       {w.error && <span className="wallet__error">{w.error}</span>}
     </span>
   );

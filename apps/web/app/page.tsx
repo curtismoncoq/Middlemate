@@ -9,7 +9,7 @@ import { TryItPanel } from '../components/TryItPanel.tsx';
 import { WeatherTryItPanel } from '../components/WeatherTryItPanel.tsx';
 import { useWallet } from '../components/WalletContext.tsx';
 import { catalogSummary } from '../lib/catalog.ts';
-import { streetStatus } from '../lib/stall.ts';
+import { auditingFor, stallKey, streetStatus } from '../lib/stall.ts';
 import { IDLE_AUDIT, type ApiListing, type AuditStatus, type CatalogState } from '../lib/types.ts';
 
 const POLL_MS = 3000;
@@ -69,7 +69,7 @@ export default function CatalogPage() {
             <p className="street__empty">{state.status === 'ok' ? 'No stalls yet. List the first endpoint.' : status}</p>
           ) : (
             street.map((l, i) => (
-              <Stall key={l.provider} listing={l} number={i * 2 + 1} auditing={audit.current?.provider === l.provider ? audit.current : undefined} />
+              <Stall key={stallKey(l)} listing={l} number={i * 2 + 1} auditing={auditingFor(l, audit)} />
             ))
           )}
         </div>
@@ -99,8 +99,8 @@ export default function CatalogPage() {
         <Catalog state={state} now={now} onTry={setTrying} audit={audit} filter={filter} onFilterChange={setFilter} />
       </section>
       {trying && (trying.claimedModel === 'api:weather@1'
-        ? <WeatherTryItPanel key={trying.provider} listing={trying} pay={wallet.pay} onClose={() => setTrying(null)} />
-        : <TryItPanel key={trying.provider} listing={trying} pay={wallet.pay} onClose={() => setTrying(null)} />)}
+        ? <WeatherTryItPanel key={trying.id ?? trying.provider} listing={trying} pay={wallet.pay} onClose={() => setTrying(null)} />
+        : <TryItPanel key={trying.id ?? trying.provider} listing={trying} pay={wallet.pay} onClose={() => setTrying(null)} />)}
     </>
   );
 }

@@ -52,3 +52,21 @@ describe('Stall', () => {
     expect(screen.getByRole('img', { name: 'Provider A: serves MiniMax-M2.7, $0.02 per request, trust 100' })).toBeTruthy();
   });
 });
+
+describe('auditingFor', () => {
+  it('marks only the listing under audit when one wallet owns several stalls', async () => {
+    const { auditingFor, stallKey } = await import('../lib/stall.ts');
+    const a = { ...base, id: 'aa'.repeat(32), name: 'Weather A' };
+    const b = { ...base, id: 'bb'.repeat(32), name: 'Weather B' };
+    const audit: AuditStatus = { running: true, current: { listingId: b.id, provider: base.provider, name: 'Weather B', probe: 2, total: 6 }, feed: [] };
+    expect(auditingFor(a, audit)).toBeUndefined();
+    expect(auditingFor(b, audit)).toMatchObject({ probe: 2, total: 6 });
+    expect(stallKey(a)).not.toBe(stallKey(b));
+  });
+  it('falls back to the wallet for legacy listings without an id', async () => {
+    const { auditingFor, stallKey } = await import('../lib/stall.ts');
+    const audit: AuditStatus = { running: true, current: { provider: base.provider, name: 'Provider A', probe: 1, total: 6 }, feed: [] };
+    expect(auditingFor(base, audit)).toMatchObject({ probe: 1 });
+    expect(stallKey(base)).toBe(base.provider);
+  });
+});

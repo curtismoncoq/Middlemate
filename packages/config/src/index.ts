@@ -16,6 +16,7 @@ export type Config = {
   registryMode: 'onchain' | 'offchain';
   paymentsMode: 'real' | 'simulated';
   registryContractId?: string;
+  listingRegistryContractId?: string;
   keys: Record<Role, KeyPair>;
   minimaxApiKey?: string;
   minimaxBaseUrl: string;
@@ -69,6 +70,7 @@ export function loadConfig(env: Record<string, string | undefined> = defaultEnv(
     registryMode: oneOf('REGISTRY_MODE', env.REGISTRY_MODE, ['onchain', 'offchain'] as const, 'onchain'),
     paymentsMode: oneOf('PAYMENTS_MODE', env.PAYMENTS_MODE, ['real', 'simulated'] as const, 'real'),
     registryContractId: env.REGISTRY_CONTRACT_ID || undefined,
+    listingRegistryContractId: env.LISTING_REGISTRY_CONTRACT_ID || undefined,
     keys: keysFrom(env),
     minimaxApiKey: env.MINIMAX_API_KEY || undefined,
     minimaxBaseUrl: env.MINIMAX_BASE_URL ?? 'https://api.minimax.io/v1',
