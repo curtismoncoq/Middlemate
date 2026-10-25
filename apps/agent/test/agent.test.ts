@@ -80,4 +80,12 @@ describe('runAgent', () => {
     expect(r.paidTo).toBe('Provider A');
     expect(d.lines.join('\n')).toMatch(/CheapMax failed \(ECONNREFUSED\)/);
   });
+
+  it('pays capped at the listing price with a timeout', async () => {
+    const d = deps([A]);
+    await runAgent({ ...d, model: 'MiniMax-M2.7', article: 'text', budgetAtomic: 5000000n });
+    const [, init, opts] = d.pay.mock.calls[0] as unknown as [string, RequestInit, { maxAmountAtomic: bigint }];
+    expect(opts.maxAmountAtomic).toBe(200000n);
+    expect(init.signal).toBeDefined();
+  });
 });

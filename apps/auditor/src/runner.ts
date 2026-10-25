@@ -14,7 +14,19 @@ export type AuditRecord = {
   slashTx?: string;
   slashedAtomic?: string;
   pauseTx?: string;
+  /** set when a slash or delist call failed; the verdict still stands */
+  error?: string;
 };
+
+export const PAY_TIMEOUT_MS = 45_000;
+
+/** Audit order: listings priced lowest relative to same-model peers first (an underpriced claim is the classic cheat). */
+export function bySuspicion(listings: Listing[]): Listing[] {
+  const top = new Map<string, bigint>();
+  for (const l of listings) if (!top.has(l.claimedModel) || l.priceAtomic > top.get(l.claimedModel)!) top.set(l.claimedModel, l.priceAtomic);
+  const ratio = (l: Listing) => Number(l.priceAtomic) / Number(top.get(l.claimedModel) || 1n);
+  return [...listings].sort((a, b) => ratio(a) - ratio(b));
+}
 
 export type AuditStore = { add(r: AuditRecord): void; all(): AuditRecord[] };
 
@@ -42,11 +54,16 @@ export function createRunner(deps: Deps) {
   const pick = deps.pickProbes ?? (() => defaultPickProbes());
 
   async function ask(l: Listing, prompt: string) {
-    const res = await deps.pay(l.endpoint, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], temperature: 0 }),
-    });
+    const res = await deps.pay(
+      l.endpoint,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], temperature: 0 }),
+        signal: AbortSignal.timeout(PAY_TIMEOUT_MS),
+      },
+      { maxAmountAtomic: l.priceAtomic },
+    );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const j = (await res.json()) as { choices: { message: { content: string } }[] };
     return { answer: j.choices[0].message.content, txHash: res.payment?.txHash };
@@ -87,13 +104,20 @@ export function createRunner(deps: Deps) {
     const rec: AuditRecord = { id: `${Date.now()}-${l.provider.slice(0, 6)}`, at: new Date().toISOString(), provider: l.provider, name: l.name, claimedModel: l.claimedModel, verdict, probes };
     log(`[audit] ${l.name}: score ${verdict.score} matched ${verdict.matchedModel} → ${verdict.unverifiable ? 'UNVERIFIABLE (no reference for ' + l.claimedModel + ')' : verdict.pass ? 'PASS' : 'FAIL'}`);
     if (!verdict.pass) {
-      const s = await deps.registry.slash(deps.auditorSecret, l.provider);
-      rec.slashTx = s.hash;
-      rec.slashedAtomic = String(s.amountAtomic);
-      log(`[audit] ${l.name}: slashed ${s.amountAtomic} tx ${s.hash}`);
-      rec.pauseTx = (await deps.registry.pauseListing(deps.auditorSecret, l.provider)).hash;
-      log(`[audit] ${l.name}: delisted tx ${rec.pauseTx}`);
+      try {
+        const s = await deps.registry.slash(deps.auditorSecret, l.provider);
+        rec.slashTx = s.hash;
+        rec.slashedAtomic = String(s.amountAtomic);
+        log(`[audit] ${l.name}: slashed ${s.amountAtomic} tx ${s.hash}`);
+        rec.pauseTx = (await deps.registry.pauseListing(deps.auditorSecret, l.provider)).hash;
+        log(`[audit] ${l.name}: delisted tx ${rec.pauseTx}`);
+      } catch (e) {
+        rec.error = (e as Error).message;
+        log(`[audit] ${l.name}: on-chain action failed: ${rec.error}`);
+      }
     }
+    // Stamp after the on-chain actions land: the web app keeps the red card up for a window from `at`.
+    rec.at = new Date().toISOString();
     deps.store.add(rec);
     return rec;
   }
@@ -104,9 +128,15 @@ export function createRunner(deps: Deps) {
   async function runAudit(provider?: string): Promise<AuditRecord[]> {
     if (running) return running;
     running = (async () => {
-      const targets = (await deps.registry.list()).filter((l) => l.active && l.stakeAtomic > 0n && (!provider || l.provider === provider));
+      const targets = bySuspicion((await deps.registry.list()).filter((l) => l.active && l.stakeAtomic > 0n && (!provider || l.provider === provider)));
       const out: AuditRecord[] = [];
-      for (const l of targets) out.push(await auditOne(l));
+      for (const l of targets) {
+        try {
+          out.push(await auditOne(l));
+        } catch (e) {
+          log(`[audit] ${l.name}: audit aborted: ${(e as Error).message}`); // one bad listing never stops the round
+        }
+      }
       return out;
     })();
     try {

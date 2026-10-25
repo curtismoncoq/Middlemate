@@ -25,7 +25,7 @@ export type ApiListing = {
 
 export type CatalogState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ok'; listings: ApiListing[] };
 
-export const SLASHED_VISIBLE_MS = 20_000;
+export const SLASHED_VISIBLE_MS = 60_000;
 export const txUrl = (hash: string) => `https://stellar.expert/explorer/testnet/tx/${hash}`;
 export const usdc = (atomic: string | bigint) => Number(atomic) / 1e7;
 export const price = (atomic: string) => `$${String(+usdc(atomic).toFixed(4))}`;

@@ -51,11 +51,11 @@ describe('Catalog states', () => {
     expect(screen.getByText(/No listings yet/)).toBeTruthy();
   });
 
-  it('hides slashed listings 20s after the slash', () => {
+  it('keeps slashed listings visible for 60s after the slash, then hides them', () => {
     const slashed = { ...base, active: false, stakeAtomic: '0', lastAudit: { at: '2026-10-25T15:00:00Z', score: 0, matchedModel: 'qwen2.5:0.5b', confidence: 1, pass: false, slashTx: 't' } };
-    const { rerender } = render(<Catalog state={{ status: 'ok', listings: [slashed] }} now={Date.parse('2026-10-25T15:00:10Z')} />);
+    const { rerender } = render(<Catalog state={{ status: 'ok', listings: [slashed] }} now={Date.parse('2026-10-25T15:00:50Z')} />);
     expect(screen.queryByText('CheapMax')).toBeTruthy();
-    rerender(<Catalog state={{ status: 'ok', listings: [slashed] }} now={Date.parse('2026-10-25T15:00:25Z')} />);
+    rerender(<Catalog state={{ status: 'ok', listings: [slashed] }} now={Date.parse('2026-10-25T15:01:05Z')} />);
     expect(screen.queryByText('CheapMax')).toBeNull();
   });
 });

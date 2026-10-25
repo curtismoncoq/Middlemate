@@ -47,11 +47,16 @@ export async function runAgent(d: AgentDeps): Promise<AgentResult> {
 
     let res: Awaited<ReturnType<PayingFetch>>;
     try {
-      res = await d.pay(pick.endpoint, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ messages: [{ role: 'user', content: `Summarize this article in 3 bullet points:\n\n${d.article}` }] }),
-      });
+      res = await d.pay(
+        pick.endpoint,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ messages: [{ role: 'user', content: `Summarize this article in 3 bullet points:\n\n${d.article}` }] }),
+          signal: AbortSignal.timeout(45_000),
+        },
+        { maxAmountAtomic: pick.priceAtomic }, // never pay more than the registered price
+      );
     } catch (e) {
       d.log(`[agent] ${pick.name} failed (${(e as Error).message}) → trying the next provider`);
       exclude.add(pick.provider);
