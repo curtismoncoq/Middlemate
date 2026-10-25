@@ -8,9 +8,15 @@ importers:
 
   .:
     dependencies:
+      '@stellar/stellar-sdk':
+        specifier: 16.4.1
+        version: 16.4.1
       '@tb/config':
         specifier: workspace:*
         version: link:packages/config
+      '@tb/registry-client':
+        specifier: workspace:*
+        version: link:packages/registry-client
       '@tb/x402-client':
         specifier: workspace:*
         version: link:packages/x402-client
@@ -64,6 +70,15 @@ importers:
       dotenv:
         specifier: ^17.2.0
         version: 17.4.2
+
+  packages/registry-client:
+    dependencies:
+      '@stellar/stellar-sdk':
+        specifier: 16.4.1
+        version: 16.4.1
+      '@tb/config':
+        specifier: workspace:*
+        version: link:../config
 
   packages/x402-client:
     dependencies:

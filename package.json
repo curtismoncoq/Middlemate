@@ -5,7 +5,8 @@
   "packageManager": "pnpm@10.33.1",
   "scripts": {
     "test": "vitest run",
-    "check-env": "tsx scripts/check-env.ts"
+    "check-env": "tsx scripts/check-env.ts",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
@@ -15,6 +16,8 @@
   },
   "dependencies": {
     "@tb/config": "workspace:*",
-    "@tb/x402-client": "workspace:*"
+    "@tb/x402-client": "workspace:*",
+    "@tb/registry-client": "workspace:*",
+    "@stellar/stellar-sdk": "16.4.1"
   }
 }
