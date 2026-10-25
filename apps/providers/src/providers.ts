@@ -1,0 +1,39 @@
+import express, { type Express } from 'express';
+import { seedListings, type Config, type SeedListing } from '@tb/config';
+import { paywall } from './paywall.ts';
+import type { Backend, ChatMessage } from './backends.ts';
+
+export type BackendFactory = { minimax: Backend; ollama: (model: string) => Backend };
+
+type AppOpts = {
+  paymentsMode: Config['paymentsMode'];
+  minimaxModel: string;
+  payTo: (role: SeedListing['role']) => string;
+  backends: BackendFactory;
+};
+
+/** One Express app serving every seed listing at POST /<slug>/v1/chat/completions behind x402. */
+export function createApp(opts: AppOpts): Express {
+  const app = express();
+  app.use(express.json({ limit: '1mb' }));
+
+  for (const l of seedListings(opts.minimaxModel)) {
+    const route = `/${l.slug}/v1/chat/completions`;
+    const backend = l.servedBy.kind === 'minimax' ? opts.backends.minimax : opts.backends.ollama(l.servedBy.model);
+    app.post(route, paywall(route, `$${l.priceUsd}`, opts.payTo(l.role), { paymentsMode: opts.paymentsMode }), async (req, res) => {
+      const messages = req.body?.messages as ChatMessage[] | undefined;
+      if (!Array.isArray(messages) || messages.length === 0) {
+        res.status(400).json({ error: 'body must include a non-empty messages array' });
+        return;
+      }
+      try {
+        const content = await backend(messages, { temperature: req.body.temperature });
+        // Every listing reports its *claimed* model — the cheater lies here too.
+        res.json({ id: `tb-${Date.now()}`, object: 'chat.completion', model: l.claimedModel, choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }] });
+      } catch (err) {
+        res.status(502).json({ error: `upstream model failed: ${(err as Error).message}` });
+      }
+    });
+  }
+  return app;
+}
