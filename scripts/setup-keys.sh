@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 USDC_ISSUER=GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5
-ROLES=(admin auditor treasury provider_a provider_b cheapmax agent)
+ROLES=(admin auditor treasury provider_a provider_b cheapmax agent weather_atlas weather_thermo weather_rainwind)
 touch .env
 
 set_env() { # key value
