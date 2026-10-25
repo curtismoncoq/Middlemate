@@ -1,11 +1,13 @@
 import { ago, price, txUrl, usdc, type ApiListing } from '../lib/types.ts';
+import { WeatherFieldMatrix } from './WeatherFieldMatrix.tsx';
 
 type Props = { listing: ApiListing; now: number; onTry?: (l: ApiListing) => void; auditing?: { probe: number; total: number } };
 
 export function ListingCard({ listing: l, now, onTry, auditing }: Props) {
   const a = l.lastAudit;
   const slashed = !!a && !a.pass && !!a.slashTx;
-  const underReview = !a && l.verifiable !== false && l.active;
+  const isApi = l.claimedModel.startsWith('api:');
+  const underReview = !a && !isApi && l.verifiable !== false && l.active;
 
   if (slashed) {
     return (
@@ -43,7 +45,9 @@ export function ListingCard({ listing: l, now, onTry, auditing }: Props) {
       )}
       <header className="card__head">
         <h3>{l.name}</h3>
-        {l.verifiable === false || a?.unverifiable ? (
+        {isApi ? (
+          <span className="badge" title="Schema declared; semantic audit of API data is future work">API · schema declared</span>
+        ) : l.verifiable === false || a?.unverifiable ? (
           <span className="badge badge--amber" title="No reference model to compare against">⚠ Unverifiable model</span>
         ) : !a ? (
           <span className="badge badge--amber">Under review</span>
@@ -56,7 +60,8 @@ export function ListingCard({ listing: l, now, onTry, auditing }: Props) {
       <p className="card__claim">
         Serves <code>{l.claimedModel}</code>
       </p>
-      {(l.verifiable === false || a?.unverifiable) && <p className="card__warn">This model can&apos;t be checked by the auditor — buy at your own risk.</p>}
+      {l.claimedModel === 'api:weather@1' && <WeatherFieldMatrix listing={l} />}
+      {!isApi && (l.verifiable === false || a?.unverifiable) && <p className="card__warn">This model can&apos;t be checked by the auditor — buy at your own risk.</p>}
       <p className="card__price">
         <span>{price(l.priceAtomic)}</span> / request
       </p>
@@ -66,7 +71,7 @@ export function ListingCard({ listing: l, now, onTry, auditing }: Props) {
       </footer>
       {underReview && <p className="card__warn">Being checked by the auditor before anyone can buy.</p>}
       <button className="btn" onClick={() => onTry?.(l)} disabled={!l.active || underReview}>
-        Try it
+        {l.claimedModel === 'api:weather@1' ? 'Try weather API' : 'Try it'}
       </button>
     </article>
   );

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Keypair } from '@stellar/stellar-sdk';
 import { createOffchainRegistry } from '../src/offchain.ts';
-import type { RegistryClient, NewListing } from '../src/types.ts';
+import type { NewListing, RegistryClient } from '../src/types.ts';
 
 const TEN = 10_0000000n;
 const auditor = Keypair.random();

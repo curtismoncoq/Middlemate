@@ -1,8 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Catalog } from '../components/Catalog.tsx';
+import { Catalog, type CatalogFilter } from '../components/Catalog.tsx';
 import { AuditFeed } from '../components/AuditFeed.tsx';
 import { TryItPanel } from '../components/TryItPanel.tsx';
+import { WeatherTryItPanel } from '../components/WeatherTryItPanel.tsx';
 import { useWallet } from '../components/WalletContext.tsx';
 import { IDLE_AUDIT, type ApiListing, type AuditStatus, type CatalogState } from '../lib/types.ts';
 
@@ -14,6 +15,7 @@ export default function CatalogPage() {
   const [starting, setStarting] = useState(false);
   const [audit, setAudit] = useState<AuditStatus>(IDLE_AUDIT);
   const [trying, setTrying] = useState<ApiListing | null>(null);
+  const [filter, setFilter] = useState<CatalogFilter>('all');
   const wallet = useWallet();
 
   useEffect(() => {
@@ -62,8 +64,10 @@ export default function CatalogPage() {
         </button>
       </section>
       <AuditFeed status={audit} />
-      <Catalog state={state} now={now} onTry={setTrying} audit={audit} />
-      {trying && <TryItPanel key={trying.provider} listing={trying} pay={wallet.pay} onClose={() => setTrying(null)} />}
+      <Catalog state={state} now={now} onTry={setTrying} audit={audit} filter={filter} onFilterChange={setFilter} />
+      {trying && (trying.claimedModel === 'api:weather@1'
+        ? <WeatherTryItPanel key={trying.provider} listing={trying} pay={wallet.pay} onClose={() => setTrying(null)} />
+        : <TryItPanel key={trying.provider} listing={trying} pay={wallet.pay} onClose={() => setTrying(null)} />)}
     </>
   );
 }

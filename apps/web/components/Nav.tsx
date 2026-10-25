@@ -5,6 +5,7 @@ import { ConnectWallet } from './ConnectWallet.tsx';
 
 const LINKS = [
   { href: '/', label: 'Catalog' },
+  { href: '/dashboard', label: 'Dashboard' },
   { href: '/list', label: 'List an endpoint' },
   { href: '/audits', label: 'Audit log' },
 ];

@@ -10,6 +10,7 @@
     "dev": "scripts/dev.sh",
     "agent": "cd apps/agent && tsx src/main.ts",
     "demo:reset": "tsx scripts/demo-reset.ts",
+    "demo:weather": "scripts/weather-demo.sh",
     "seed": "tsx scripts/seed-listings.ts"
   },
   "devDependencies": {
