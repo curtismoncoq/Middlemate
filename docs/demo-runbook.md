@@ -1,34 +1,67 @@
-# Demo runbook (≈2.5 min video)
+# Demo runbook (≈3 min video)
+
+The story is that an honest provider and a cheater both list live, and the audit on entry passes the first one and slashes the second. Footage is recorded as separate clips (R1–R10), motion-design pieces (M1–M6) are made apart, and both are cut to a voiceover recorded separately.
 
 ## Before recording
 
-For a field-matrix walkthrough with synthetic APIs, run `pnpm demo:weather` in place of the LLM demo setup below. It starts three unlisted local fixture endpoints: Atlas (:4003), Thermo (:4004), and Rain & Wind (:4005). With the checked-in example configuration (`REGISTRY_MODE=onchain`), connect Freighter on Testnet, open `/list`, choose Weather API, and submit one endpoint such as `http://localhost:4003/weather/v1/forecast`. Approve the register and stake transactions in your wallet; the listing appears only after submission. Forecast values are fixtures, not live weather, and requests to these local fixture APIs use simulated x402 payments. Dashboard earnings and spend show confirmed onchain USDC transfers only, from the recent Stellar RPC event window. Stop the demo with Ctrl-C. This mode does not replace the LLM demo runbook below.
+1. `pnpm demo:weather` (the same as `pnpm dev`, plus the three weather fixtures on :4003–4005). It starts the web app (:3000), providers (:4001) and auditor (:4002).
+2. `pnpm demo:reset` in a second terminal. It unregisters every listing (stakes refunded), seeds Provider A, audits it once (about a minute), and resets the agent's $0.50 budget and the audit log. The catalog opens on one green, audited card.
+3. Pre-warm Ollama so the first answers aren't slow: `ollama run llama3.2:3b "hi"` and `ollama run qwen2.5:0.5b "hi"`.
+4. Freighter on **Testnet** with two accounts, each holding USDC (stake plus a little for Try it):
+   - **wallet 1 (honest)** lists `llama3.2:3b`;
+   - **wallet 2 (cheater)** lists CheapMax.
+5. `pnpm check-env`: the agent and the auditor each hold USDC (one entry audit costs the auditor a few cents).
+6. Capture setup: 1440p or higher, browser at 125% zoom with the bookmarks bar hidden, terminal font around 20 pt. Keep Freighter popups in frame; they show the payments are real. Screen Studio gives cursor zoom for free.
 
-1. `pnpm demo:reset`. This gives CheapMax a fresh staked identity if it was slashed, resets the agent's $0.50 budget and clears the audit log.
-2. `pnpm dev`. This starts the web app (:3000), providers (:4001) and auditor (:4002). Restart it after every reset so the providers use the new CheapMax key.
-3. Pre-warm Ollama so the first answer isn't slow: `pnpm agent --budget 0` (it refuses to pay, but it loads the catalog), plus one Try-it message to Provider B.
-4. Screen layout: browser on the catalog (left two-thirds) and a terminal (right third) with large font.
-5. Freighter on **Testnet**, holding a little USDC. Have the agent wallet funded (`pnpm tsx scripts/check-env.ts` shows ≥ 0.10 USDC).
+Allow about 10 s per paid request (settlement waits for a ledger) and 1–2 min per entry audit.
 
-Allow about 10 s per paid request: settlement waits for a ledger.
+## Clips to record, in this order
 
-## Beats
+The slash can't be undone without a reset, so record in this order.
 
-| # | Time | Screen | Action / line |
-|---|------|--------|---------------|
-| 1 | 0:00 | Catalog | "Agents are starting to buy compute on their own. Nobody checks what they get." |
-| 2 | 0:20 | `/list` | Fill in the form (name, endpoint, model, price, stake 1 USDC), approve the two Freighter prompts, and the new card appears. *"To list, you stake."* (Fallback if time is short: show the cards and say they're staked; point at the stake badge.) |
-| 3 | 0:50 | Catalog → Try it on Provider B | Send a question and approve in Freighter. The answer comes back with a **paid · tx** link; click it to show stellar.expert. *"Humans pay per message over x402. No account, no API key."* |
-| 4 | 1:15 | Terminal | `pnpm agent`. It prints its $0.50 budget (the wallet holds ~$20; the policy allows $0.50), **picks CheapMax $0.012 (cheapest MiniMax)**, pays (tx hash) and prints the summary. *"The agent picks the cheapest model claiming MiniMax."* |
-| 5 | 1:40 | Catalog | Click **Run audit now**. The terminal running `pnpm dev` streams probe lines (`closest qwen2.5:0.5b (1.000)`). The auditor checks underpriced claims first, so CheapMax goes first. About **1.5–2 minutes later** (6 paid probes, then slash and delist on-chain) its card **turns red: SLASHED · DELISTED, Actually matched: qwen2.5:0.5b**, and stays red for 60 s. **Cut the wait in editing.** Click the slash tx link. *"It claimed MiniMax and served a 0.5B model. It lost its stake on-chain."* |
-| 6 | 2:05 | Terminal | `pnpm agent` again. It now picks **Provider A** (CheapMax is no longer listed). Then `pnpm agent --try-overspend`, which prints **REJECTED: payment $2.00 exceeds remaining budget**. *"The wallet holds $20, but the agent's policy caps it at $0.50."* |
-| 7 | 2:20 | Catalog | *"Agents can pay for compute, and compute has to prove it's honest."* |
+| # | Clip | Steps | Raw length |
+|---|------|-------|-----------|
+| R1 | Catalog after reset | Provider A green and audited; slow scroll | 15 s |
+| R2 | Honest listing (wallet 1) | `/list`, name `Honest Llama`, endpoint `http://localhost:4001/llama-b/v1/chat/completions`, model `llama3.2:3b` from the dropdown, price $0.004, stake 5. Approve the two Freighter prompts. The card shows **Being audited** and the live feed, then **PASS** | 2–3 min |
+| R3 | Human pays | Try it on Honest Llama, sign in Freighter, the answer comes back with **paid · tx**; click through to stellar.expert | 40 s |
+| R4 | Cheater listing (switch Freighter to wallet 2) | `/list`, name `CheapMax`, endpoint `http://localhost:4001/cheapmax/v1/chat/completions`, model `MiniMax-M2.7`, price $0.012 (cheaper than A), stake 5. Audit runs; the card turns red: **SLASHED · matched qwen2.5:0.5b** (red for 60 s) | 2–3 min |
+| R5 | Slash proof | Click the slash tx link and show the registry contract on stellar.expert | 15 s |
+| R6 | Agent terminal | `pnpm agent`: $0.50 budget, picks **Provider A** (CheapMax is delisted), prints the tx. Then `pnpm agent --try-overspend`: **REJECTED: payment … exceeds remaining budget** | 40 s |
+| R7 | Weather API | List `http://localhost:4003/weather/v1/forecast` (Weather API in `/list`), then Try it; paid JSON response | 20 s |
+| R8 | Dashboard | `/dashboard`: earnings and spend | 10 s |
+| R9 | B-roll: auditor logs | The `pnpm demo:weather` terminal streaming probe lines during R4 (`closest qwen2.5:0.5b (1.000)`). Record it at the same time as R4 | — |
+| R10 | B-roll: code | `slash` with `#[only_role(caller, "auditor")]` in `contracts/registry/src/lib.rs`, and `computeVerdict` in `apps/auditor/src/scoring.ts` | 15 s |
 
-"Run audit now" returns immediately and audits every active listing in the background, CheapMax first. A full round costs about $0.25 of the auditor's USDC and takes about 5 min. To audit only CheapMax:
-`curl -X POST "localhost:4002/audit/run" -H 'content-type: application/json' -d "{\"provider\":\"$(grep TB_CHEAPMAX_PUBLIC .env | cut -d= -f2)\"}"`
+## Motion design
 
-## If something breaks on camera
+- **M1 Hook:** an agent icon pays a "MiniMax" label, which peels off to reveal "0.5B model".
+- **M2 How it works:** four animated steps:
+  - **Stake** (Soroban registry)
+  - **Pay per request** (x402 · USDC)
+  - **Hidden audit** (the auditor buys probes like any customer)
+  - **Slash** (stake to the treasury, listing delisted)
+- **M3 Fingerprint:** the cheater's answers land as dots near qwen2.5:0.5b instead of MiniMax; the trust score counts down to 0.
+- **M4 Stake counter:** 5.00 → 0.00 USDC with a red flash, synced to the card turning red.
+- **M5 Callouts:** zoom and highlight on each tx hash, trust score and the REJECTED line.
+- **M6 End card:** "Built on Stellar" (x402, Soroban, OpenZeppelin Stellar Contracts, USDC, Freighter), the repo URL and the team.
 
-- Payment hangs for more than 30 s: the testnet RPC is slow. Cut and retake; nothing was charged unless a tx hash printed.
-- An honest provider scores low: re-run the audit. The README explains why the test is statistical.
-- Out of USDC: get more from faucet.circle.com (Stellar testnet), or set `PAYMENTS_MODE=simulated` in `.env`. Simulated payments must be stated in the video and the README.
+## Timeline
+
+| Time | Beat | Footage | Voiceover |
+|------|------|---------|-----------|
+| 0:00–0:15 | Hook | M1 | "AI agents now pay for compute on their own. Nobody checks what they actually get." |
+| 0:15–0:35 | Concept | M2 → R1 | "TrustBazaar: providers stake to list, everyone pays per request over x402, and an auditor checks them in secret." |
+| 0:35–1:00 | Honest provider lists | R2 at 4–8×, M5 on the stake prompt | "To list, you stake. The moment you list, the auditor starts testing you with hidden probes, paid like any customer." |
+| 1:00–1:20 | A human pays | R3, M5 on the tx | "Pay per message from your wallet. No account, no API key." |
+| 1:20–1:55 | **The cheater** | R4 with a speed ramp (on-screen "≈90 s later"), R9 overlay, M3, M4, R5 | "This one claims MiniMax and undercuts everyone. Its answers fingerprint as a 0.5B model. It's slashed and delisted on-chain." |
+| 1:55–2:25 | The agent | R6, M5 on REJECTED | "Agents only buy from audited listings. The wallet holds $20, but the policy caps it at $0.50." |
+| 2:25–2:40 | Beyond LLMs | R7, R8 | "The same trust layer works for any paid API, like this weather API." |
+| 2:40–3:00 | Close | R10 flash → M6 | "Agents can pay for compute. Now the compute has to prove it's honest." |
+
+## Retakes
+
+- **R4 burns the cheater's stake.** It goes to the treasury, and every audit spends some of the auditor's USDC. To redo R4, run `pnpm demo:reset`, top up wallet 2 if needed, and record R2 onwards again (the reset removes Honest Llama too).
+- **R2 or R3 only:** unregister isn't in the UI, so a retake needs `pnpm demo:reset` as well.
+- **A payment hangs for more than 30 s:** the testnet RPC is slow. Cut and retake; nothing was charged unless a tx hash appeared.
+- **An honest provider scores low:** re-run its audit with **Run audit now**. The README explains why the test is statistical.
+- **Out of USDC:** get more at faucet.circle.com (Stellar testnet), or set `PAYMENTS_MODE=simulated` in `.env`. Simulated payments must then be stated in the video and the README.

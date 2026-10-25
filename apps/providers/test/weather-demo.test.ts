@@ -30,4 +30,20 @@ describe('weather demo APIs', () => {
       for (const id of profile.availableFields) expect(valueAt(paid.body, id)).not.toBeUndefined();
     });
   }
+
+  it('lets browsers send real x402 payment headers and read the settlement', async () => {
+    const app = createWeatherDemoApp(WEATHER_DEMO_PROFILES[0], { paymentsMode: 'simulated', payTo: 'GDEMO' });
+    const pre = await request(app)
+      .options('/weather/v1/forecast')
+      .set('Origin', 'http://localhost:3000')
+      .set('Access-Control-Request-Method', 'POST')
+      .set('Access-Control-Request-Headers', 'access-control-expose-headers,content-type,payment-signature');
+    const allowed = pre.headers['access-control-allow-headers'].toLowerCase().split(/\s*,\s*/);
+    for (const h of ['access-control-expose-headers', 'content-type', 'payment-signature', 'x-payment']) expect(allowed).toContain(h);
+    expect(pre.headers['access-control-expose-headers']).toMatch(/payment-response/i);
+  });
+
+  it('each profile is paid to its own real testnet identity (a config role)', () => {
+    expect(WEATHER_DEMO_PROFILES.map((p) => p.role)).toEqual(['weatherAtlas', 'weatherThermo', 'weatherRainwind']);
+  });
 });

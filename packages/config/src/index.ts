@@ -2,7 +2,7 @@ import { config as loadDotenv } from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-export const ROLES = ['admin', 'auditor', 'treasury', 'providerA', 'providerB', 'cheapmax', 'agent'] as const;
+export const ROLES = ['admin', 'auditor', 'treasury', 'providerA', 'providerB', 'cheapmax', 'agent', 'weatherAtlas', 'weatherThermo', 'weatherRainwind'] as const;
 export type Role = (typeof ROLES)[number];
 export type KeyPair = { public: string; secret: string };
 

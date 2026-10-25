@@ -1,6 +1,7 @@
 import express, { type Express } from 'express';
 import { seedListings, type Config, type SeedListing } from '@tb/config';
 import { paywall } from './paywall.ts';
+import { buyerCors } from './cors.ts';
 import type { Backend, ChatMessage } from './backends.ts';
 import { mountWeatherProvider, type WeatherProviderOptions } from './weather.ts';
 
@@ -18,18 +19,7 @@ type AppOpts = {
 export function createApp(opts: AppOpts): Express {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
-  // Browser buyers (the web app's Try it) call providers cross-origin and must read the x402 headers.
-  app.use((req, res, next) => {
-    res.setHeader('access-control-allow-origin', '*');
-    res.setHeader('access-control-allow-headers', 'content-type, payment-signature, x-payment, x-simulated-payment, access-control-expose-headers');
-    res.setHeader('access-control-expose-headers', 'payment-required, payment-response, x-payment-response');
-    if (req.method === 'OPTIONS') {
-      res.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
-      res.status(204).end();
-      return;
-    }
-    next();
-  });
+  app.use(buyerCors); // browser buyers (Try it) call providers cross-origin and read the x402 headers
 
   for (const l of seedListings(opts.minimaxModel)) {
     const route = `/${l.slug}/v1/chat/completions`;
