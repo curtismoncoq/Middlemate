@@ -1,6 +1,7 @@
 import { contract, Keypair, rpc, TransactionBuilder } from '@stellar/stellar-sdk';
 import type { Config } from '@tb/config';
-import type { Listing, RegistryClient, TxResult } from './types.ts';
+import type { Listing, MarketplaceRegistryClient, TxResult } from './types.ts';
+import { buildEndpointTx, createEndpointRegistry, type EndpointWalletCall } from './onchain-endpoints.ts';
 
 type RawListing = { provider: string; name: string; endpoint: string; claimed_model: string; price: bigint; stake: bigint; active: boolean };
 type Assembled<T> = contract.AssembledTransaction<T>;
@@ -36,7 +37,7 @@ function unwrap<T>(value: unknown): T {
   return value as T;
 }
 
-export function createOnchainRegistry(cfg: Pick<Config, 'rpcUrl' | 'networkPassphrase' | 'registryContractId'>): RegistryClient {
+export function createOnchainRegistry(cfg: Pick<Config, 'rpcUrl' | 'networkPassphrase' | 'registryContractId' | 'listingRegistryContractId'>): MarketplaceRegistryClient {
   if (!cfg.registryContractId) throw new Error('REGISTRY_CONTRACT_ID is not set — run scripts/deploy-registry.sh');
   const clients = new Map<string, Promise<contract.Client & RegistryMethods>>();
 
@@ -66,9 +67,12 @@ export function createOnchainRegistry(cfg: Pick<Config, 'rpcUrl' | 'networkPassp
 
   const addr = (secret: string) => Keypair.fromSecret(secret).publicKey();
 
+  const endpoints = createEndpointRegistry(cfg);
   return {
+    ...endpoints,
     async list() {
-      return ((await (await clientFor()).list()).result ?? []).map(toListing);
+      const [legacy, added] = await Promise.all([(await clientFor()).list(), endpoints.listEndpoints()]);
+      return [...(legacy.result ?? []).map(toListing), ...added];
     },
     async get(provider) {
       const r = (await (await clientFor()).get({ provider })).result;
@@ -107,18 +111,23 @@ export function createOnchainRegistry(cfg: Pick<Config, 'rpcUrl' | 'networkPassp
   };
 }
 
-type ChainCfg = Pick<Config, 'rpcUrl' | 'networkPassphrase' | 'registryContractId'>;
+type ChainCfg = Pick<Config, 'rpcUrl' | 'networkPassphrase' | 'registryContractId' | 'listingRegistryContractId'>;
 export type WalletCall =
   | { method: 'register'; args: { name: string; endpoint: string; claimedModel: string; priceAtomic: bigint } }
-  | { method: 'stake'; args: { amountAtomic: bigint } };
+  | { method: 'stake'; args: { amountAtomic: bigint } }
+  | { method: 'unregister'; args: { provider: string } }
+  | EndpointWalletCall;
 
 /** Simulates a provider call and returns the unsigned transaction XDR for a browser wallet to sign. */
 export async function buildUnsignedTx(cfg: ChainCfg, publicKey: string, call: WalletCall): Promise<string> {
+  if (call.method !== 'register' && call.method !== 'stake' && call.method !== 'unregister') return buildEndpointTx(cfg, publicKey, call);
   const c = await contract.Client.from<RegistryMethods>({ contractId: cfg.registryContractId!, rpcUrl: cfg.rpcUrl, networkPassphrase: cfg.networkPassphrase, publicKey });
   const tx =
     call.method === 'register'
       ? await c.register({ provider: publicKey, name: call.args.name, endpoint: call.args.endpoint, claimed_model: call.args.claimedModel, price: call.args.priceAtomic })
-      : await c.stake({ provider: publicKey, amount: call.args.amountAtomic });
+      : call.method === 'unregister'
+        ? await c.unregister({ caller: publicKey, provider: call.args.provider })
+        : await c.stake({ provider: publicKey, amount: call.args.amountAtomic });
   unwrap(tx.result); // e.g. AlreadyRegistered surfaces here, before the wallet prompt
   return tx.toXDR();
 }

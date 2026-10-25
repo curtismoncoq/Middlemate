@@ -12,6 +12,10 @@ const B = L('Provider B', 'GB', 'llama3.2:3b', 40000n);
 const C = L('CheapMax', 'GC', 'MiniMax-M2.7', 120000n);
 
 describe('chooseListing', () => {
+  it('can retry another listing from the same wallet', () => {
+    const first = { ...A, id: 'first' }, second = { ...A, id: 'second' };
+    expect(chooseListing([first, second], A.claimedModel, new Set(['first']))?.id).toBe('second');
+  });
   it('picks the cheapest active listing for the model', () => {
     expect(chooseListing([A, B, C], 'MiniMax-M2.7', new Set())?.name).toBe('CheapMax');
   });

@@ -2,14 +2,14 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadConfig, REPO_ROOT, verifiableModels } from '@tb/config';
-import { createRegistryClient, type RegistryClient } from '@tb/registry-client';
+import { createRegistryClient, isListingActive, listingKey, type RegistryClient, type EndpointRegistryMethods } from '@tb/registry-client';
 import { createPayingFetch, type PayingFetch } from '@tb/x402-client';
 import { BudgetGuard, usd } from './budget.ts';
 import { chooseListing } from './choose.ts';
 import { runWeatherRequest } from './weather.ts';
 
 type AgentDeps = {
-  registry: Pick<RegistryClient, 'list' | 'isActive'>;
+  registry: Pick<RegistryClient, 'list' | 'isActive'> & Partial<EndpointRegistryMethods>;
   pay: PayingFetch;
   log: (line: string) => void;
   model: string;
@@ -39,14 +39,14 @@ export async function runAgent(d: AgentDeps): Promise<AgentResult> {
       return { paidTo: null };
     }
     d.log(`[agent] picked ${pick.name} at ${usd(pick.priceAtomic)}/request (cheapest ${d.model})`);
-    if (!(await d.registry.isActive(pick.provider))) {
+    if (!(await isListingActive(d.registry, pick))) {
       d.log(`[agent] ${pick.name} was delisted → rerouting`);
-      exclude.add(pick.provider);
+      exclude.add(listingKey(pick));
       continue;
     }
-    if (d.isTrusted && !d.isTrusted(pick.provider)) {
+    if (d.isTrusted && !d.isTrusted(listingKey(pick))) {
       d.log(`[agent] ${pick.name} not audited yet (under review) → skipping`);
-      exclude.add(pick.provider);
+      exclude.add(listingKey(pick));
       continue;
     }
     const cost = pick.priceAtomic * BigInt(jobs);
@@ -69,12 +69,12 @@ export async function runAgent(d: AgentDeps): Promise<AgentResult> {
       );
     } catch (e) {
       d.log(`[agent] ${pick.name} failed (${(e as Error).message}) → trying the next provider`);
-      exclude.add(pick.provider);
+      exclude.add(listingKey(pick));
       continue;
     }
     if (!res.ok) {
       d.log(`[agent] ${pick.name} failed (HTTP ${res.status}) → trying the next provider`);
-      exclude.add(pick.provider);
+      exclude.add(listingKey(pick));
       continue;
     }
     guard.record(pick.priceAtomic);
@@ -113,9 +113,9 @@ async function cli() {
     // Trust = the latest audit of a listing passed (and wasn't inconclusive). Auditor down → no filter, with a warning.
     let isTrusted: ((p: string) => boolean) | undefined;
     try {
-      const audits = (await (await fetch(`http://localhost:${cfg.auditorPort}/audits`, { signal: AbortSignal.timeout(3000) })).json()) as { provider: string; verdict: { pass: boolean; inconclusive: boolean } }[];
+      const audits = (await (await fetch(`http://localhost:${cfg.auditorPort}/audits`, { signal: AbortSignal.timeout(3000) })).json()) as { listingId?: string; provider: string; verdict: { pass: boolean; inconclusive: boolean } }[];
       const latest = new Map<string, boolean>();
-      for (const a of audits) if (!latest.has(a.provider)) latest.set(a.provider, a.verdict.pass && !a.verdict.inconclusive);
+      for (const a of audits) { const key = a.listingId ?? a.provider; if (!latest.has(key)) latest.set(key, a.verdict.pass && !a.verdict.inconclusive); }
       isTrusted = (p) => latest.get(p) === true;
     } catch {
       console.log('[agent] auditor unreachable — buying without the audit check');

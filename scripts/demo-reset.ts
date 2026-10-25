@@ -33,7 +33,9 @@ async function pay(from: Keypair, to: string, amount: number) {
 }
 
 // 1. clear the registry
-for (const l of await reg.list()) {
+const currentListings = await reg.list();
+if (currentListings.some((l) => l.id && !l.retired)) throw new Error('Exit the new per-listing endpoints from Dashboard before demo:reset. Their owner must confirm refunds.');
+for (const l of currentListings.filter((l) => !l.id)) {
   const r = await reg.unregister(cfg.keys.admin.secret, l.provider);
   console.log(`unregistered ${l.name.padEnd(12)} refunded ${Number(r.refundedAtomic) / 1e7} USDC  ${r.hash}`);
 }

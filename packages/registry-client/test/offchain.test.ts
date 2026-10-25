@@ -1,23 +1,42 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Keypair } from '@stellar/stellar-sdk';
 import { createOffchainRegistry } from '../src/offchain.ts';
-import type { NewListing, RegistryClient } from '../src/types.ts';
+import type { NewListing, MarketplaceRegistryClient } from '../src/types.ts';
 
 const TEN = 10_0000000n;
 const auditor = Keypair.random();
 const admin = Keypair.random();
 const listing = (name: string): NewListing => ({ name, endpoint: 'http://x', claimedModel: 'MiniMax-M2.7', priceAtomic: 120000n });
 
-let reg: RegistryClient;
+let reg: MarketplaceRegistryClient;
 beforeEach(() => {
   const file = path.join(mkdtempSync(path.join(tmpdir(), 'tb-')), 'registry.json');
   reg = createOffchainRegistry(file, { auditor: auditor.publicKey(), admin: admin.publicKey() });
 });
 
 describe('offchain registry', () => {
+  it('supports multiple independently owned listings and cooldown refunds', async () => {
+    const p = Keypair.random(), stranger = Keypair.random();
+    const a = '01'.repeat(32), b = '02'.repeat(32);
+    await reg.registerEndpoint(p.secret(), a, listing('Mat temperature'), TEN);
+    await reg.registerEndpoint(p.secret(), b, listing('Mat rain'), TEN * 2n);
+    expect((await reg.list()).map((l) => l.name)).toEqual(['Mat temperature', 'Mat rain']);
+    await expect(reg.requestExit(stranger.secret(), a)).rejects.toThrow('Unauthorized');
+    vi.useFakeTimers();
+    try {
+      await reg.requestExit(p.secret(), a);
+      await expect(reg.withdrawEndpoint(p.secret(), a)).rejects.toThrow('CooldownPending');
+      await reg.slashEndpoint(auditor.secret(), a);
+      vi.advanceTimersByTime(10_000);
+      expect(await reg.isEndpointActive(a)).toBe(false);
+      expect((await reg.withdrawEndpoint(p.secret(), a)).refundedAtomic).toBe(0n);
+      expect((await reg.getEndpoint(b))?.stakeAtomic).toBe(TEN * 2n);
+      await expect(reg.withdrawEndpoint(p.secret(), a)).rejects.toThrow('Retired');
+    } finally { vi.useRealTimers(); }
+  });
   it('register then stake is active', async () => {
     const p = Keypair.random();
     await reg.register(p.secret(), listing('A'));

@@ -1,11 +1,11 @@
-import type { Listing, RegistryClient } from '@tb/registry-client';
+import { listingKey, isListingActive, type Listing, type RegistryClient, type EndpointRegistryMethods } from '@tb/registry-client';
 import type { PayingFetch } from '@tb/x402-client';
 import { capabilitiesUrl, validateWeatherCapabilities, WEATHER_SCHEMA_ID } from '@tb/weather-contract';
 import { BudgetGuard, usd } from './budget.ts';
 
 export type WeatherRequest = { latitude: number; longitude: number; forecastHours?: number };
 type WeatherDeps = {
-  registry: Pick<RegistryClient, 'list' | 'isActive'>;
+  registry: Pick<RegistryClient, 'list' | 'isActive'> & Partial<EndpointRegistryMethods>;
   pay: PayingFetch;
   log: (line: string) => void;
   guard: BudgetGuard;
@@ -26,13 +26,13 @@ export async function runWeatherRequest(deps: WeatherDeps, request: WeatherReque
   const excluded = new Set<string>();
   for (;;) {
     const listing = (await deps.registry.list())
-      .filter((candidate: Listing) => candidate.active && candidate.stakeAtomic > 0n && candidate.claimedModel === WEATHER_SCHEMA_ID && !excluded.has(candidate.provider))
+      .filter((candidate: Listing) => candidate.active && candidate.stakeAtomic > 0n && candidate.claimedModel === WEATHER_SCHEMA_ID && !excluded.has(listingKey(candidate)))
       .sort((a, b) => a.priceAtomic < b.priceAtomic ? -1 : a.priceAtomic > b.priceAtomic ? 1 : 0)[0];
     if (!listing) {
       deps.log(`[agent] no active provider for ${WEATHER_SCHEMA_ID}`);
       return { paidTo: null as string | null };
     }
-    if (!(await deps.registry.isActive(listing.provider))) { excluded.add(listing.provider); continue; }
+    if (!(await isListingActive(deps.registry, listing))) { excluded.add(listingKey(listing)); continue; }
     if (!deps.guard.canSpend(listing.priceAtomic)) {
       deps.log(`[agent] REJECTED: payment ${usd(listing.priceAtomic)} exceeds remaining budget ${usd(deps.guard.remaining())}`);
       return { paidTo: null as string | null };
@@ -63,7 +63,7 @@ export async function runWeatherRequest(deps: WeatherDeps, request: WeatherReque
       return { paidTo: listing.name, result, txHash: response.payment?.txHash };
     } catch (error) {
       deps.log(`[agent] ${listing.name} failed (${(error as Error).message}) → trying the next provider`);
-      excluded.add(listing.provider);
+      excluded.add(listingKey(listing));
     }
   }
 }

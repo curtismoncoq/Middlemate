@@ -13,6 +13,11 @@ const base: ApiListing = {
 };
 
 describe('ListingCard', () => {
+  it('renders distinct names for several endpoints owned by the same wallet', () => {
+    render(<Catalog now={Date.now()} state={{ status: 'ok', listings: [{ ...base, id: 'a', name: 'Mat temperature' }, { ...base, id: 'b', name: 'Mat rain' }] }} />);
+    expect(screen.getByRole('heading', { name: 'Mat temperature' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Mat rain' })).toBeTruthy();
+  });
   it('shows price, stake and trust for an active listing', () => {
     const now = Date.parse('2026-10-25T15:05:00Z');
     render(<ListingCard listing={{ ...base, lastAudit: { at: '2026-10-25T15:03:00Z', score: 97, matchedModel: 'MiniMax-M2.7', confidence: 1, pass: true } }} now={now} />);

@@ -29,6 +29,14 @@ The listing form checks that this manifest matches the provider's field selectio
 
 For the synthetic local walkthrough, `pnpm demo:weather` starts three unlisted fixture endpoints on ports 4003–4005. Owners manually submit the endpoint they choose through `/list`; only then does it appear in the catalog. `Weather Atlas Demo` supports the full response field set; `Thermo Simple Demo` returns core temperature fields; `Rain & Wind Demo` focuses on precipitation, wind, cloud cover, coordinates, and the weather code. Values are generated fixtures, not upstream weather data. Their API requests are real x402 USDC payments to each fixture's own testnet wallet (roles `weatherAtlas`, `weatherThermo`, `weatherRainwind`, created by `scripts/setup-keys.sh`), and follow `PAYMENTS_MODE` like every other endpoint. Paywalled servers use the shared `buyerCors` middleware (`apps/providers/src/cors.ts`) so browser buyers can pay. Listing and stake transactions use the configured registry mode; with the demo's normal `REGISTRY_MODE=onchain` setting they are signed in the wallet and submitted to Stellar Testnet.
 
+## Multiple listings and exits
+
+The provider wallet owns the listing; a separate 32-byte listing ID identifies each service. A wallet can create multiple endpoints, including several weather listings, each with an independent user-entered name and stake. The human form uses `registerEndpoint` to register and transfer the initial stake atomically in a wallet-signed transaction. New records live in the additional `LISTING_REGISTRY_CONTRACT_ID` instance; legacy records remain in `REGISTRY_CONTRACT_ID`. Reads aggregate both.
+
+Dashboard exposes per-ID top-up, rename, removal request, cancellation, and withdrawal with wallet approval. The onchain exit grace is initially 10 seconds and can be changed by the admin with `set_exit_cooldown`; existing exit deadlines do not change. Listing discovery stops after the grace; the owner then confirms withdrawal. Slashing can still consume remaining stake before that withdrawal. Retired records stay in history. Legacy entries support the deployed immediate `unregister` refund.
+
+Audits and agent exclusion/trust checks use `id ?? provider`, so a failed service does not slash or exclude every service owned by the same account. Earnings from plain USDC transfers can only be attributed to the payout wallet, not to an individual endpoint when wallets are shared.
+
 ## Serving: reuse the paywall
 
 API providers go through the same x402 path as the LLM providers:

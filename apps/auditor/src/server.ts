@@ -85,7 +85,7 @@ if (ENTRY_POLL_MS > 0) {
       const [next] = awaitingReview(await registry.list(), store.all(), refModels);
       if (next) {
         console.log(`[auditor] entry audit: ${next.name} (${next.claimedModel})`);
-        await runner.runAudit(next.provider);
+        await runner.runAudit(next.id ?? next.provider);
       }
     } catch (e) {
       console.error('[auditor] entry check failed', (e as Error).message);

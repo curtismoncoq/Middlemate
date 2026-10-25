@@ -5,7 +5,7 @@ The story is that an honest provider and a cheater both list live, and the audit
 ## Before recording
 
 1. `pnpm demo:weather` (the same as `pnpm dev`, plus the three weather fixtures on :4003–4005). It starts the web app (:3000), providers (:4001) and auditor (:4002).
-2. `pnpm demo:reset` in a second terminal. It unregisters every listing (stakes refunded), seeds Provider A, audits it once (about a minute), and resets the agent's $0.50 budget and the audit log. The catalog opens on one green, audited card.
+2. `pnpm demo:reset` in a second terminal. It unregisters legacy listings (stakes refunded; exit new per-ID listings from Dashboard first), seeds Provider A, audits it once (about a minute), and resets the agent's $0.50 budget and the audit log. The catalog opens on one green, audited card.
 3. Pre-warm Ollama so the first answers aren't slow: `ollama run llama3.2:3b "hi"` and `ollama run qwen2.5:0.5b "hi"`.
 4. Freighter on **Testnet** with two accounts, each holding USDC (stake plus a little for Try it):
    - **wallet 1 (honest)** lists `llama3.2:3b`;
@@ -22,7 +22,7 @@ The slash can't be undone without a reset, so record in this order.
 | # | Clip | Steps | Raw length |
 |---|------|-------|-----------|
 | R1 | Catalog after reset | Provider A green and audited; slow scroll | 15 s |
-| R2 | Honest listing (wallet 1) | `/list`, name `Honest Llama`, endpoint `http://localhost:4001/llama-b/v1/chat/completions`, model `llama3.2:3b` from the dropdown, price $0.004, stake 5. Approve the two Freighter prompts. The card shows **Being audited** and the live feed, then **PASS** | 2–3 min |
+| R2 | Honest listing (wallet 1) | `/list`, name `Honest Llama`, endpoint `http://localhost:4001/llama-b/v1/chat/completions`, model `llama3.2:3b` from the dropdown, price $0.004, stake 5. Approve the atomic register-and-stake transaction in Freighter. The card shows **Being audited** and the live feed, then **PASS** | 2–3 min |
 | R3 | Human pays | Try it on Honest Llama, sign in Freighter, the answer comes back with **paid · tx**; click through to stellar.expert | 40 s |
 | R4 | Cheater listing (switch Freighter to wallet 2) | `/list`, name `CheapMax`, endpoint `http://localhost:4001/cheapmax/v1/chat/completions`, model `MiniMax-M2.7`, price $0.012 (cheaper than A), stake 5. Audit runs; the card turns red: **SLASHED · matched qwen2.5:0.5b** (red for 60 s) | 2–3 min |
 | R5 | Slash proof | Click the slash tx link and show the registry contract on stellar.expert | 15 s |
@@ -61,7 +61,11 @@ The slash can't be undone without a reset, so record in this order.
 ## Retakes
 
 - **R4 burns the cheater's stake.** It goes to the treasury, and every audit spends some of the auditor's USDC. To redo R4, run `pnpm demo:reset`, top up wallet 2 if needed, and record R2 onwards again (the reset removes Honest Llama too).
-- **R2 or R3 only:** unregister isn't in the UI, so a retake needs `pnpm demo:reset` as well.
+- **R2 or R3 only:** use Dashboard → Remove & unstake, wait for the grace to expire, then confirm Withdraw before relisting. Legacy entries refund immediately through their unregister action.
 - **A payment hangs for more than 30 s:** the testnet RPC is slow. Cut and retake; nothing was charged unless a tx hash appeared.
 - **An honest provider scores low:** re-run its audit with **Run audit now**. The README explains why the test is statistical.
 - **Out of USDC:** get more at faucet.circle.com (Stellar testnet), or set `PAYMENTS_MODE=simulated` in `.env`. Simulated payments must then be stated in the video and the README.
+
+## Multiple endpoints with one wallet
+
+Set `LISTING_REGISTRY_CONTRACT_ID` to the deployed public address in `.env.example`, then restart `pnpm demo:weather`. Register two weather endpoints using the same wallet; each gets its own ID, name and stake. Dashboard → Rename changes the selected listing only. Remove & unstake starts the 10-second onchain grace; after expiry confirm Withdraw to recover remaining stake. Legacy entries keep their immediate unregister refund. Both registry instances are read together; existing stakes are preserved.

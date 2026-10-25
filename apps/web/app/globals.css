@@ -226,7 +226,7 @@ a { color: var(--teal); }
 .dash-panel__head p { margin: 2px 0 0; }
 .dash-blank { margin: 0; padding: 20px 14px; border-radius: 11px; background: #f6f5f0; color: var(--ink-2); font-size: 13px; }
 .provider-listings { display: grid; gap: 10px; }
-.provider-listing { display: grid; grid-template-columns: minmax(210px, 1.5fr) repeat(3, minmax(72px, .55fr)) auto; align-items: center; gap: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.provider-listing { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
 .provider-listing__identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .provider-listing__identity div { display: grid; min-width: 0; }
 .provider-listing__identity b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -236,7 +236,7 @@ a { color: var(--teal); }
 .provider-listing__metric span { color: var(--ink-2); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
 .provider-listing__metric b { font-size: 14px; }
 .provider-listing > .badge { font-size: 10px; }
-.provider-listing__controls { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; padding-top: 10px; border-top: 1px solid #efede7; }
+.provider-listing__controls { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 10px; border-top: 1px solid #efede7; }
 .provider-listing__controls input { width: 108px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
 .provider-listing__controls .btn { padding: 7px 12px; font-size: 12px; }
 .provider-listing__limit { grid-column: 1 / -1; }
@@ -274,7 +274,7 @@ a { color: var(--teal); }
 @media (max-width: 850px) {
   .dash-provider__grid, .dash-buyer__grid { grid-template-columns: 1fr; }
   .dash-provider__stats { grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr; }
-  .provider-listing { grid-template-columns: minmax(180px, 1.5fr) repeat(3, minmax(65px, .55fr)) auto; gap: 8px; }
+  .provider-listing { grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; }
 }
 @media (max-width: 620px) {
   .dashboard__heading, .dash-section-head { align-items: flex-start; }
@@ -288,3 +288,5 @@ a { color: var(--teal); }
   .money-chart__head strong { font-size: 25px; }
   .money-chart__foot span:nth-child(2):not(:last-child) { display: none; }
 }
+
+.provider-listing__identity small { overflow-wrap: anywhere; }

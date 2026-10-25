@@ -66,8 +66,8 @@ export default function CatalogPage() {
       <AuditFeed status={audit} />
       <Catalog state={state} now={now} onTry={setTrying} audit={audit} filter={filter} onFilterChange={setFilter} />
       {trying && (trying.claimedModel === 'api:weather@1'
-        ? <WeatherTryItPanel key={trying.provider} listing={trying} pay={wallet.pay} onClose={() => setTrying(null)} />
-        : <TryItPanel key={trying.provider} listing={trying} pay={wallet.pay} onClose={() => setTrying(null)} />)}
+        ? <WeatherTryItPanel key={trying.id ?? trying.provider} listing={trying} pay={wallet.pay} onClose={() => setTrying(null)} />
+        : <TryItPanel key={trying.id ?? trying.provider} listing={trying} pay={wallet.pay} onClose={() => setTrying(null)} />)}
     </>
   );
 }
