@@ -17,7 +17,7 @@ flowchart LR
     A[AI agent<br/>$20 wallet · $0.50 budget]
   end
   W[TrustBazaar web<br/>catalog · audit log · list form]
-  R[(Soroban registry<br/>register · stake · slash · pause_listing)]
+  R[(Soroban registry<br/>register · stake · slash · pause_listing · unregister)]
   P[Providers<br/>x402 paywalled /v1/chat/completions]
   AU[Auditor<br/>hidden probes · fingerprints]
   F[x402 facilitator<br/>settles USDC]
@@ -52,7 +52,7 @@ Calibration over 3 rounds: Provider A scored 83/100/83, Provider B 70/85/85, and
 
 ## Proof on testnet
 
-- Registry contract: [`CAHJN3HANWQVJUPQO43PXLCCK4ZAA2Y2EOJYTI7WJAO4WYWFB34GSH2D`](https://stellar.expert/explorer/testnet/contract/CAHJN3HANWQVJUPQO43PXLCCK4ZAA2Y2EOJYTI7WJAO4WYWFB34GSH2D)
+- Registry contract: [`CCW4UFJ7MSNSWOQWZWG3XOF2IVVWVRINK3YCEROH6PDO4LW5ZPA6ELUA`](https://stellar.expert/explorer/testnet/contract/CCW4UFJ7MSNSWOQWZWG3XOF2IVVWVRINK3YCEROH6PDO4LW5ZPA6ELUA). The transactions below ran on the first version, [`CAHJN3…SH2D`](https://stellar.expert/explorer/testnet/contract/CAHJN3HANWQVJUPQO43PXLCCK4ZAA2Y2EOJYTI7WJAO4WYWFB34GSH2D), which had no `unregister`.
 - First x402 payment (agent → provider): [`0ddff7b0…`](https://stellar.expert/explorer/testnet/tx/0ddff7b02f53dcfec78df221ed49c7a32b73118bc4e1c00d63aaf23f91ce4c74)
 - Human payment from Freighter in the browser: [`5a602447…`](https://stellar.expert/explorer/testnet/tx/5a6024470f23f42c49ea21a0eeee8ac9f56074787e34f951e7430760d5e9b3b4)
 - **CheapMax slashed by the auditor**: [`abfa5a43…`](https://stellar.expert/explorer/testnet/tx/abfa5a43b63a91bb5acf34b8025615d581624b1a8227c7e81cddc3422214fb4c), delisted: [`e6fcbae4…`](https://stellar.expert/explorer/testnet/tx/e6fcbae4e4730e06c409d1169d62aec8c4c4106f56560aa9b1b3f4ce6880cf30)
@@ -87,7 +87,7 @@ pnpm seed                                   # registers and stakes the three lis
 pnpm dev                                    # web :3000, providers :4001, auditor :4002
 pnpm agent                                  # the agent buys a summary
 pnpm agent --try-overspend                  # the budget rejects a $2.00 job
-pnpm demo:reset                             # fresh CheapMax after a slash
+pnpm demo:reset                             # unregister everything (refunds), seed + audit Provider A
 ```
 
 Tests: `pnpm test` (77 TypeScript tests) and `cargo test -p registry` (11 contract tests). The video walkthrough is in [`docs/demo-runbook.md`](docs/demo-runbook.md).
@@ -102,7 +102,7 @@ Tests: `pnpm test` (77 TypeScript tests) and `cargo test -p registry` (11 contra
 - **The seed providers are ours**, including the cheater. Providers and auditor references share one local Ollama instance; in production the reference would be hosted independently.
 - **The agent's spending cap is enforced in the agent's code, off-chain.** The demo agent's wallet holds about $20 while its policy allows $0.50, and it refuses any 402 asking more than the registered price. A compromised agent process could ignore that check. The on-chain version (an OpenZeppelin smart account with a spending-limit policy) is blocked today by an x402 facilitator bug with policy events ([x402#3352](https://github.com/x402-foundation/x402/issues/3352)).
 - **The facilitator is self-hosted** (in-process, built from the official x402 libraries, with our admin key paying fees) rather than the hosted OpenZeppelin facilitator, which requires an API key.
-- **No unstake yet.** Stake can only be slashed; a withdrawal with a cooldown is future work.
+- **`unregister` refunds stake immediately** (provider or admin). That's enough to reset the demo, but in production it lets a cheater who senses an audit pull its stake before the slash lands. Production needs an unstake request plus a cooldown during which the stake stays slashable.
 - **Testnet only.** Nothing here has been audited.
 
 ## What's next

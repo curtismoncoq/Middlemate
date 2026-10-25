@@ -13,12 +13,19 @@ const INTERVAL = Number(process.env.AUDIT_INTERVAL_MS ?? 120_000);
 
 function fileStore(file: string): AuditStore {
   const mem = memoryStore(existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as AuditRecord[]) : []);
+  const save = () => {
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, JSON.stringify(mem.all(), null, 2));
+  };
   return {
     all: mem.all,
     add(r) {
       mem.add(r);
-      mkdirSync(path.dirname(file), { recursive: true });
-      writeFileSync(file, JSON.stringify(mem.all(), null, 2));
+      save();
+    },
+    clear() {
+      mem.clear();
+      save();
     },
   };
 }
@@ -44,6 +51,10 @@ app.use((_req, res, next) => {
 });
 app.get('/audits', (_req, res) => res.json(store.all()));
 app.get('/audit/status', (_req, res) => res.json(runner.status()));
+app.delete('/audits', (_req, res) => {
+  store.clear(); // demo reset
+  res.status(204).end();
+});
 // Starts a round and returns at once (rounds take minutes; clients poll /audits). `?wait=1` blocks until done.
 app.post('/audit/run', async (req, res) => {
   const round = runner.runAudit(req.body?.provider);

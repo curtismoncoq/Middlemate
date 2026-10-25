@@ -39,11 +39,11 @@ export function bySuspicion(listings: Listing[]): Listing[] {
   return [...listings].sort((a, b) => ratio(a) - ratio(b));
 }
 
-export type AuditStore = { add(r: AuditRecord): void; all(): AuditRecord[] };
+export type AuditStore = { add(r: AuditRecord): void; all(): AuditRecord[]; clear(): void };
 
 export function memoryStore(initial: AuditRecord[] = []): AuditStore {
   const records = [...initial];
-  return { add: (r) => void records.unshift(r), all: () => [...records] };
+  return { add: (r) => void records.unshift(r), all: () => [...records], clear: () => void records.splice(0) };
 }
 
 type Deps = {

@@ -165,4 +165,11 @@ describe('runAudit', () => {
     const [rec] = await runner.runAudit();
     expect(rec.spentAtomic).toBe(String(6n * 120000n));
   });
+
+  it('memoryStore.clear empties the log', () => {
+    const st = memoryStore();
+    st.add({ id: '1' } as never);
+    st.clear();
+    expect(st.all()).toEqual([]);
+  });
 });
