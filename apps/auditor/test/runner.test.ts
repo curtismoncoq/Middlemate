@@ -86,11 +86,13 @@ describe('runAudit', () => {
     expect(store.all().map((r) => r.provider)).toEqual(['GCHEAT', 'GA']);
   });
 
-  it('never slashes a listing claiming a model with no reference', async () => {
-    const { runner, registry } = setup([listing({ provider: 'GU', name: 'my_endpoint', claimedModel: 'Claude Opus 5.5' })], () => 'll answer', ['MiniMax-M2.7', 'llama3.2:3b', 'qwen2.5:0.5b']);
-    const [rec] = await runner.runAudit();
-    expect(rec.verdict.unverifiable).toBe(true);
+  it('skips listings claiming a model with no reference: no paid probes, no slash', async () => {
+    const { runner, registry, pay } = setup([listing({ provider: 'GU', name: 'my_endpoint', claimedModel: 'Claude Opus 5.5' })], () => 'll answer', ['MiniMax-M2.7', 'llama3.2:3b', 'qwen2.5:0.5b']);
+    const recs = await runner.runAudit();
+    expect(recs).toHaveLength(0);
+    expect(pay).not.toHaveBeenCalled();
     expect(registry.slash).not.toHaveBeenCalled();
+    expect(runner.status().feed.at(-1)?.line).toMatch(/skipped — no reference for Claude Opus 5.5/);
   });
 
   it('timestamps the record after the delist lands', async () => {

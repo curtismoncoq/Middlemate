@@ -156,6 +156,10 @@ export function createRunner(deps: Deps) {
       const targets = bySuspicion((await deps.registry.list()).filter((l) => l.active && l.stakeAtomic > 0n && (!provider || l.provider === provider)));
       const out: AuditRecord[] = [];
       for (const l of targets) {
+        if (deps.referenceModels && !deps.referenceModels.includes(l.claimedModel)) {
+          say(l, `skipped — no reference for ${l.claimedModel} (unverifiable, not probed)`); // don't pay for probes we can't judge
+          continue;
+        }
         try {
           out.push(await auditOne(l));
         } catch (e) {

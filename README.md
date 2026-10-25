@@ -14,7 +14,7 @@ x402 lets anyone sell an API per request: no accounts, no API keys. Agents are s
 flowchart LR
   subgraph Buyers
     H[Human in browser<br/>Freighter via Stellar Wallets Kit]
-    A[AI agent<br/>$0.50 budget]
+    A[AI agent<br/>$20 wallet · $0.50 budget]
   end
   W[TrustBazaar web<br/>catalog · audit log · list form]
   R[(Soroban registry<br/>register · stake · slash · pause_listing)]
@@ -32,7 +32,7 @@ flowchart LR
 ```
 
 1. **Providers stake.** To list an endpoint, a provider declares the model it serves and a price, and locks USDC in the registry contract (`register`, `stake`).
-2. **Buyers pay per request.** Humans pay from Freighter in the browser. The agent pays from its own wallet with a $0.50 budget. Payments go **directly to the provider** over x402 (Soroban auth-entry signing of a USDC transfer); TrustBazaar is never a middleman.
+2. **Buyers pay per request.** Humans pay from Freighter in the browser. The agent pays from its own wallet under a $0.50 spending policy, although the wallet holds more. Payments go **directly to the provider** over x402 (Soroban auth-entry signing of a USDC transfer); TrustBazaar is never a middleman.
 3. **The auditor catches liars.** It is a paying customer like any other. It sends randomized hidden probes:
    - *checkable* probes with known answers (multi-step arithmetic, strict formatting, extraction)
    - *fingerprint* probes, whose answers are embedded and compared with answers from reference models we can query (MiniMax-M2.7 via API, `llama3.2:3b` and `qwen2.5:0.5b` via Ollama)
@@ -100,7 +100,7 @@ Tests: `pnpm test` (77 TypeScript tests) and `cargo test -p registry` (11 contra
 - **Cached references trade freshness for cost.** A provider whose model changes behaviour is compared against answers up to 24 h old.
 - **The model registry is off-chain** (the contract is frozen for the hackathon). An on-chain, governed registry is future work.
 - **The seed providers are ours**, including the cheater. Providers and auditor references share one local Ollama instance; in production the reference would be hosted independently.
-- **The agent's spending cap is enforced in the agent's code, off-chain.** The on-chain version (an OpenZeppelin smart account with a spending-limit policy) is blocked today by an x402 facilitator bug with policy events ([x402#3352](https://github.com/x402-foundation/x402/issues/3352)). The agent's wallet only holds $0.50, which bounds the worst case.
+- **The agent's spending cap is enforced in the agent's code, off-chain.** The demo agent's wallet holds about $20 while its policy allows $0.50, and it refuses any 402 asking more than the registered price. A compromised agent process could ignore that check. The on-chain version (an OpenZeppelin smart account with a spending-limit policy) is blocked today by an x402 facilitator bug with policy events ([x402#3352](https://github.com/x402-foundation/x402/issues/3352)).
 - **The facilitator is self-hosted** (in-process, built from the official x402 libraries, with our admin key paying fees) rather than the hosted OpenZeppelin facilitator, which requires an API key.
 - **No unstake yet.** Stake can only be slashed; a withdrawal with a cooldown is future work.
 - **Testnet only.** Nothing here has been audited.
