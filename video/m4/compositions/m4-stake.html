@@ -1,0 +1,70 @@
+<!-- M4 Stake counter (3 s): 5.00 -> 0.00 USDC into a red hit; the real slashed stall shutters. -->
+<template>
+  <style>
+    @font-face { font-family: 'Barlow Condensed'; font-weight: 700; src: url('assets/fonts/BarlowCondensed-700.woff2') format('woff2'); }
+    @font-face { font-family: 'Barlow'; font-weight: 400; src: url('assets/fonts/Barlow-400.woff2') format('woff2'); }
+    @font-face { font-family: 'Barlow'; font-weight: 600; src: url('assets/fonts/Barlow-600.woff2') format('woff2'); }
+    @font-face { font-family: 'Geist Mono'; font-weight: 500; src: url('assets/fonts/GeistMono-500.woff2') format('woff2'); }
+    #root { position: absolute; inset: 0; overflow: hidden; background: var(--color-ground); }
+    .stall text { font-family: 'Barlow', sans-serif; }
+    .st-facade { fill: #2f2f2f; } .st-sign { fill: #111; }
+    .st-sign__name { font: 700 27px 'Barlow Condensed', sans-serif; fill: var(--color-ink); letter-spacing: .5px; }
+    .st-kind { font-size: 12px; font-weight: 600; fill: #9e9e9e; letter-spacing: 2px; }
+    .st-plaque { fill: #e8e8e8; } .st-plaque__no { font-size: 12px; font-weight: 700; fill: #111; }
+    .st-window { fill: #1a1a1a; stroke: #3d3d3d; stroke-width: 6; }
+    .st-window__claim { font: 700 16px 'Barlow Condensed', sans-serif; fill: #8a8a8a; letter-spacing: 1px; }
+    .st-server { fill: #262626; stroke: #3a3a3a; stroke-width: 1; } .st-shelf { fill: #3d3d3d; }
+    .st-led { fill: var(--color-accent); } .stall--review .st-led { fill: var(--color-warning); }
+    .st-door { fill: #252525; stroke: #3d3d3d; stroke-width: 6; } .st-door__glass { fill: #161616; } .st-handle { fill: #8a8a8a; }
+    .st-placard rect { fill: #0e0e0e; stroke: #4a4a4a; stroke-width: 1.5; }
+    .st-placard__l1 { font-size: 11px; font-weight: 600; fill: #cfcfcf; letter-spacing: 1px; }
+    .st-placard__l2 { font: 700 15px 'Barlow Condensed', sans-serif; fill: var(--color-accent); }
+    .stall--review .st-placard__l2 { fill: var(--color-warning); } .stall--slashed .st-placard__l2 { fill: var(--color-negative); }
+    .st-board rect { fill: #0e0e0e; }
+    .st-board__l1 { font-size: 11px; font-weight: 600; fill: #cfcfcf; letter-spacing: 1.5px; }
+    .st-board__price { font: 700 23px 'Barlow Condensed', sans-serif; fill: var(--color-accent); }
+    .stall--slashed .st-board__price { fill: #777; text-decoration: line-through; }
+    .st-kerb { fill: #1b1b1b; }
+    .st-shutter > rect:first-child { fill: #3b3b3b; } .st-shutter__slat { fill: #2b2b2b; }
+    .st-tape { fill: var(--color-negative); }
+    .st-tape__text { font: 700 18px 'Barlow Condensed', sans-serif; fill: #141414; letter-spacing: .5px; }
+    #m4-svg .st-board__price { fill: var(--color-accent); text-decoration: none; }
+    #m4-label { position: absolute; left: 110px; top: 250px; font: 600 48px 'Barlow', sans-serif; color: var(--color-muted); }
+    #m4-count { position: absolute; left: 100px; top: 320px; display: flex; align-items: baseline; gap: 28px;
+      font: 700 330px/0.85 'Barlow Condensed', sans-serif; color: var(--color-ink); font-variant-numeric: tabular-nums; }
+    #m4-unit { font-size: 120px; }
+    #m4-where { position: absolute; left: 110px; top: 680px; font: 700 92px/1 'Barlow Condensed', sans-serif; text-transform: uppercase; color: var(--color-negative); }
+    #m4-flash { position: absolute; inset: 0; background: var(--color-negative); opacity: 0; pointer-events: none; }
+  </style>
+  <div id="root" data-composition-id="m4-stake" data-width="1920" data-height="1080">
+    <div id="m4-stage" class="clip" data-start="0" data-duration="3" data-layout-allow-overlap>
+      <svg id="m4-svg" style="position:absolute;left:1110px;top:110px;width:700.0px;height:860px" data-layout-ignore class="stall stall--slashed" viewBox="0 0 280 344" role="img" aria-label="CheapClaude: serves claude-opus-5-5, $0.012 per request, slashed, stake 5 → 0 USDC, actually matched qwen2.5:0.5b"><rect class="st-facade" x="0" y="0" width="280" height="324"></rect><rect class="st-sign" x="12" y="12" width="256" height="48"></rect><text class="st-sign__name" x="26" y="46">CHEAPCLAUDE</text><text class="st-kind" x="14" y="82">INFERENCE</text><g><rect class="st-plaque" x="236" y="68" width="30" height="18"></rect><text class="st-plaque__no" x="251" y="81" text-anchor="middle">5</text></g><rect class="st-window" x="14" y="92" width="170" height="180"></rect><text class="st-window__claim" x="99" y="120" text-anchor="middle">CLAUDE-OPUS-5-5</text><g><g><rect class="st-server" x="26" y="124" width="20" height="24"></rect><circle class="st-led st-led--blink" cx="32" cy="142" r="2.2"></circle></g><g><rect class="st-server" x="52" y="124" width="20" height="24"></rect><circle class="st-led " cx="58" cy="142" r="2.2"></circle></g><g><rect class="st-server" x="78" y="124" width="20" height="24"></rect><circle class="st-led " cx="84" cy="142" r="2.2"></circle></g><g><rect class="st-server" x="104" y="124" width="20" height="24"></rect><circle class="st-led st-led--blink" cx="110" cy="142" r="2.2"></circle></g><g><rect class="st-server" x="130" y="124" width="20" height="24"></rect><circle class="st-led " cx="136" cy="142" r="2.2"></circle></g><g><rect class="st-server" x="156" y="124" width="20" height="24"></rect><circle class="st-led " cx="162" cy="142" r="2.2"></circle></g><rect class="st-shelf" x="22" y="150" width="154" height="3"></rect></g><g><g><rect class="st-server" x="26" y="166" width="20" height="24"></rect><circle class="st-led " cx="32" cy="184" r="2.2"></circle></g><g><rect class="st-server" x="52" y="166" width="20" height="24"></rect><circle class="st-led " cx="58" cy="184" r="2.2"></circle></g><g><rect class="st-server" x="78" y="166" width="20" height="24"></rect><circle class="st-led st-led--blink" cx="84" cy="184" r="2.2"></circle></g><g><rect class="st-server" x="104" y="166" width="20" height="24"></rect><circle class="st-led " cx="110" cy="184" r="2.2"></circle></g><g><rect class="st-server" x="130" y="166" width="20" height="24"></rect><circle class="st-led " cx="136" cy="184" r="2.2"></circle></g><g><rect class="st-server" x="156" y="166" width="20" height="24"></rect><circle class="st-led st-led--blink" cx="162" cy="184" r="2.2"></circle></g><rect class="st-shelf" x="22" y="192" width="154" height="3"></rect></g><g><g><rect class="st-server" x="26" y="208" width="20" height="24"></rect><circle class="st-led " cx="32" cy="226" r="2.2"></circle></g><g><rect class="st-server" x="52" y="208" width="20" height="24"></rect><circle class="st-led st-led--blink" cx="58" cy="226" r="2.2"></circle></g><g><rect class="st-server" x="78" y="208" width="20" height="24"></rect><circle class="st-led " cx="84" cy="226" r="2.2"></circle></g><g><rect class="st-server" x="104" y="208" width="20" height="24"></rect><circle class="st-led " cx="110" cy="226" r="2.2"></circle></g><rect class="st-shelf" x="22" y="234" width="154" height="3"></rect></g><rect class="st-door" x="196" y="92" width="72" height="210"></rect><rect class="st-door__glass" x="206" y="104" width="52" height="58"></rect><rect class="st-handle" x="254" y="232" width="4" height="18"></rect><g class="st-placard"><rect x="199" y="174" width="66" height="42"></rect><text class="st-placard__l1" x="232" y="190" text-anchor="middle">TRUST</text><text class="st-placard__l2" x="232" y="208" text-anchor="middle">0</text></g><g id="m4-shutter" class="st-shutter"><rect x="12" y="90" width="258" height="214"></rect><rect class="st-shutter__slat" x="12" y="98" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="108" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="118" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="128" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="138" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="148" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="158" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="168" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="178" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="188" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="198" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="208" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="218" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="228" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="238" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="248" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="258" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="268" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="278" width="258" height="2"></rect><rect class="st-shutter__slat" x="12" y="288" width="258" height="2"></rect><g id="m4-tape" transform="rotate(-9 140 196)"><rect class="st-tape" x="-20" y="180" width="320" height="32"></rect><text class="st-tape__text" x="140" y="202" text-anchor="middle">SLASHED · STAKE 5 → 0</text></g></g><g class="st-board"><rect x="40" y="270" width="104" height="56"></rect><text class="st-board__l1" x="92" y="288" text-anchor="middle">PER REQUEST</text><text id="m4-price" class="st-board__price" x="92" y="314" text-anchor="middle">$0.012</text></g><rect class="st-kerb" x="0" y="324" width="280" height="20"></rect></svg>
+      <p id="m4-label">Stake</p>
+      <div id="m4-count"><span id="m4-num">5.00</span><span id="m4-unit">USDC</span></div>
+      <p id="m4-where">→ to the treasury</p>
+      <div id="m4-flash" data-layout-ignore></div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const HIT = 1.5, DRAIN = 1.2;
+    const num = document.querySelector('#m4-num');
+    // the counter is a pure function of time: drains, accelerating into the hit
+    const paint = () => {
+      const p = Math.min(1, Math.max(0, (tl.time() - (HIT - DRAIN)) / DRAIN));
+      num.textContent = (5 * (1 - p * p)).toFixed(2);
+    };
+    tl.to({}, { duration: 3, ease: 'none', onUpdate: paint }, 0);
+    tl.set('#m4-shutter', { scaleY: 0, transformOrigin: '50% 0%' }, 0);
+    tl.set('#m4-tape', { opacity: 0 }, 0);
+    tl.set('#m4-where', { opacity: 0 }, 0);
+    // the hit: a 0 ms set, then the shutter slams on a long tail
+    tl.set('#m4-count', { color: '#ff6a5c' }, HIT);
+    tl.fromTo('#m4-flash', { opacity: 0.55 }, { opacity: 0, duration: 0.28, ease: 'power2.out', immediateRender: false }, HIT);
+    tl.to('#m4-shutter', { scaleY: 1, duration: 0.45, ease: 'power4.out' }, HIT);
+    tl.set('#m4-price', { fill: '#777', textDecoration: 'line-through' }, HIT);
+    tl.set('#m4-tape', { opacity: 1 }, HIT + 0.42);
+    tl.fromTo('#m4-where', { opacity: 0, filter: 'blur(8px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.2, ease: 'power2.out', immediateRender: false }, HIT + 0.12);
+    window.__timelines['m4-stake'] = tl;
+  </script>
+</template>

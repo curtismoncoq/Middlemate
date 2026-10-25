@@ -1,0 +1,30 @@
+<!-- M6 End card, part 1 (0-4.2 s): the closing line, word by word. -->
+<template>
+  <style>
+    @font-face { font-family: 'Barlow Condensed'; font-weight: 700; src: url('assets/fonts/BarlowCondensed-700.woff2') format('woff2'); }
+    @font-face { font-family: 'Barlow'; font-weight: 400; src: url('assets/fonts/Barlow-400.woff2') format('woff2'); }
+    @font-face { font-family: 'Barlow'; font-weight: 600; src: url('assets/fonts/Barlow-600.woff2') format('woff2'); }
+    @font-face { font-family: 'Geist Mono'; font-weight: 500; src: url('assets/fonts/GeistMono-500.woff2') format('woff2'); }
+    #root { position: absolute; inset: 0; overflow: hidden; background: var(--color-ground); }
+    #m6c-text { position: absolute; left: 110px; top: 260px; font: 700 140px/0.95 'Barlow Condensed', sans-serif; text-transform: uppercase; }
+    #m6c-text div { display: flex; flex-wrap: wrap; gap: 0 0.22em; }
+    .m6c-w { color: #3a3a3a; }
+    #m6c-l1 .m6c-w { color: var(--color-ink); }
+  </style>
+  <div id="root" data-composition-id="m6-claim" data-width="1920" data-height="1080">
+    <div id="m6c-stage" class="clip" data-start="0" data-duration="4.2">
+      <div id="m6c-text"><div id="m6c-l1"><span id="m6c-w1" class="m6c-w">Agents</span><span id="m6c-w2" class="m6c-w">can</span><span id="m6c-w3" class="m6c-w">pay</span><span id="m6c-w4" class="m6c-w">for</span><span id="m6c-w5" class="m6c-w">compute.</span></div><div id="m6c-l2"><span id="m6c-w6" class="m6c-w">Now</span><span id="m6c-w7" class="m6c-w">the</span><span id="m6c-w8" class="m6c-w">compute</span><span id="m6c-w9" class="m6c-w">has</span><span id="m6c-w10" class="m6c-w">to</span></div><div id="m6c-l3"><span id="m6c-w11" class="m6c-w">prove</span><span id="m6c-w12" class="m6c-w">it's</span><span id="m6c-w13" class="m6c-w">honest.</span></div></div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // line 1 is lit on frame 0 (the thumbnail) and settles; lines 2 and 3 light word by word
+    tl.fromTo('#m6c-l1', { scale: 1.03, transformOrigin: '0% 50%' }, { scale: 1, duration: 0.4, ease: 'expo.out' }, 0);
+    for (let i = 6; i <= 13; i++) {
+      const at = 0.75 + (i - 6) * 0.09 + (i >= 11 ? 0.25 : 0);
+      tl.fromTo('#m6c-w' + i, { color: '#3a3a3a' }, { color: i === 13 ? '#d6f58e' : '#f2f2f2', duration: 0.16, ease: 'power2.out', immediateRender: false }, at);
+    }
+    tl.to('#m6c-text', { opacity: 0, filter: 'blur(10px)', duration: 0.2, ease: 'power3.in' }, 3.95);
+    window.__timelines['m6-claim'] = tl;
+  </script>
+</template>

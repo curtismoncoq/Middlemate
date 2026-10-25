@@ -34,6 +34,8 @@ The slash can't be undone without a reset, so record in this order.
 
 ## Motion design
 
+Built in HyperFrames in `video/` (see `video/README.md`); `sh video/render.sh` renders every piece into `video/out/`.
+
 - **M1 Hook:** an agent icon pays a "Claude Opus" label with the Claude logo, which peels off to reveal "0.5B model".
 - **M2 How it works:** four animated steps:
   - **Stake** (Soroban registry)
