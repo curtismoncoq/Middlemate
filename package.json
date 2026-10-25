@@ -6,7 +6,11 @@
   "scripts": {
     "test": "vitest run",
     "check-env": "tsx scripts/check-env.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "dev": "scripts/dev.sh",
+    "agent": "cd apps/agent && tsx src/main.ts",
+    "demo:reset": "tsx scripts/demo-reset.ts",
+    "seed": "tsx scripts/seed-listings.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
