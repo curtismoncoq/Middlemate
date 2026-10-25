@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { verifiableModels, isVerifiable } from '../src/models.ts';
+import { verifiableModels, isVerifiable, ollamaModelsToWarm, EMBED_MODEL } from '../src/models.ts';
 
 describe('verifiable model registry', () => {
   const models = verifiableModels('MiniMax-M2.7');
@@ -12,5 +12,12 @@ describe('verifiable model registry', () => {
     expect(isVerifiable('llama3.2:3b', models)).toBe(true);
     expect(isVerifiable('Llama 3.2 3B', models)).toBe(false);
     expect(isVerifiable('Claude Opus 5.5', models)).toBe(false);
+  });
+});
+
+describe('ollamaModelsToWarm', () => {
+  it('lists every local model the demo touches once: references, seeded backends, then the embedder', () => {
+    expect(ollamaModelsToWarm('MiniMax-M2.7')).toEqual(['llama3.2:3b', 'qwen2.5:0.5b', EMBED_MODEL]);
+    expect(EMBED_MODEL).toBe('nomic-embed-text');
   });
 });

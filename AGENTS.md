@@ -34,7 +34,7 @@ These interfaces are shared by the contract, providers, auditor, agent and web a
 - OpenZeppelin Pausable already defines a `Paused` event (ours is `ListingPaused`).
 - The x402 browser client resends the paid request with an `Access-Control-Expose-Headers` request header; any paywalled server must allow it in CORS preflight.
 - A settled x402 payment takes about 10 s; set timeouts with that in mind.
-- `pnpm demo:reset` (with `pnpm dev` running) unregisters every listing (stakes refunded), seeds Provider A, and audits it once.
+- `pnpm demo:reset` (with `pnpm dev` running) warms every Ollama model (kept loaded 30 min), unregisters every listing (stakes refunded), seeds Provider A, and audits it once.
 - `AUDIT_INTERVAL_MS=0` keeps the auditor timer off, because every audit round spends the auditor's USDC.
 
 ## Commands

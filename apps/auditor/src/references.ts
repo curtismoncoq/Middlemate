@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { minimaxBackend, ollamaBackend, type Backend } from '@tb/providers/backends';
-import { verifiableModels, type Config } from '@tb/config';
+import { EMBED_MODEL, OLLAMA_KEEP_ALIVE, verifiableModels, type Config } from '@tb/config';
 
 export const REFERENCE_MODELS = (cfg: Config): Record<string, Backend> =>
   Object.fromEntries(
@@ -45,12 +45,12 @@ export function createReferences(models: Record<string, Backend>, opts: { file?:
   };
 }
 
-export function ollamaEmbed(url: string, model = 'nomic-embed-text') {
+export function ollamaEmbed(url: string, model = EMBED_MODEL) {
   return async (texts: string[]): Promise<number[][]> => {
     const r = await fetch(`${url}/api/embed`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model, input: texts }),
+      body: JSON.stringify({ model, input: texts, keep_alive: OLLAMA_KEEP_ALIVE }),
       signal: AbortSignal.timeout(60_000),
     });
     if (!r.ok) throw new Error(`embed HTTP ${r.status}`);

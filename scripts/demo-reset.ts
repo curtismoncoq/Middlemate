@@ -1,4 +1,5 @@
 // Resets the marketplace to the start of the demo:
+//  0. every local Ollama model is loaded (and kept loaded 30 min), so nothing cold-starts on camera
 //  1. the admin unregisters every listing (remaining stakes are refunded to their providers)
 //  2. Provider A (honest MiniMax) is registered and staked, topped up from the agent wallet if short
 //  3. the auditor audits Provider A once, so the video opens with a green, scored listing
@@ -8,9 +9,10 @@
 import { existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { Asset, Horizon, Keypair, Networks, Operation, TransactionBuilder } from '@stellar/stellar-sdk';
-import { loadConfig, REPO_ROOT, seedListings, endpointFor } from '@tb/config';
+import { EMBED_MODEL, loadConfig, ollamaModelsToWarm, REPO_ROOT, seedListings, endpointFor } from '@tb/config';
 import { createRegistryClient, toAtomic } from '@tb/registry-client';
 import { blockingMessage, resetPlan } from './reset-plan.ts';
+import { warmOllama } from './warm-ollama.ts';
 
 const USDC = new Asset('USDC', 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5');
 const cfg = loadConfig();
@@ -31,6 +33,11 @@ async function pay(from: Keypair, to: string, amount: number) {
     .build();
   tx.sign(from);
   return (await horizon.submitTransaction(tx)).hash;
+}
+
+// 0. warm Ollama
+for (const w of await warmOllama(cfg.ollamaUrl, ollamaModelsToWarm(cfg.minimaxModel), EMBED_MODEL)) {
+  console.log(w.ok ? `warmed ${w.model.padEnd(18)} ${(w.ms / 1000).toFixed(1)} s` : `could not warm ${w.model}: ${w.error} (is Ollama running? \`ollama pull ${w.model}\`)`);
 }
 
 // 1. clear the registry
