@@ -43,10 +43,15 @@ export async function runWeatherRequest(deps: WeatherDeps, request: WeatherReque
       if (!capabilitiesResponse.ok) throw new Error(`capabilities HTTP ${capabilitiesResponse.status}`);
       const capabilities = validateWeatherCapabilities(await capabilitiesResponse.json());
       if (!capabilities.availableFields.includes('forecast.temperatureC')) throw new Error('provider does not offer forecast.temperatureC');
-      const response = await deps.pay(listing.endpoint, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ latitude: request.latitude, longitude: request.longitude, forecastHours }),
-      });
+      const response = await deps.pay(
+        listing.endpoint,
+        {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ latitude: request.latitude, longitude: request.longitude, forecastHours }),
+          signal: AbortSignal.timeout(45_000),
+        },
+        { maxAmountAtomic: listing.priceAtomic }, // never pay more than the registered price
+      );
       if (response.ok || response.payment?.txHash) deps.guard.record(listing.priceAtomic);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const result = await response.json() as { schema?: string; availableFields?: string[]; forecast?: unknown; location?: unknown };
