@@ -22,9 +22,9 @@ The slash can't be undone without a reset, so record in this order.
 | # | Clip | Steps | Raw length |
 |---|------|-------|-----------|
 | R1 | Catalog after reset | Provider A green and audited; slow scroll | 15 s |
-| R2 | Honest listing (wallet 1) | `/list`, name `Honest Llama`, endpoint `http://localhost:4001/llama-b/v1/chat/completions`, model `llama3.2:3b` from the dropdown, price $0.004, stake 5. Approve the atomic register-and-stake transaction in Freighter. The card shows **Being audited** and the live feed, then **PASS** | 2–3 min |
+| R2 | Honest listing (wallet 1) | `/list`, name `Honest Llama`, endpoint `http://localhost:4001/llama-b/v1/chat/completions` (the price, $0.004, is read from the endpoint and appears under it), model `llama3.2:3b` from the dropdown, stake 5. Approve the atomic register-and-stake transaction in Freighter. The card shows **Being audited** and the live feed, then **PASS** | 2–3 min |
 | R3 | Human pays | Try it on Honest Llama, sign in Freighter, the answer comes back with **paid · tx**; click through to stellar.expert | 40 s |
-| R4 | Cheater listing (switch Freighter to wallet 2) | `/list`, name `CheapClaude`, endpoint `http://localhost:4001/cheapmax/v1/chat/completions` (secretly qwen2.5:0.5b), model `Claude Opus 5.5`, price $0.012, stake 5. Audit runs; the card turns red: **SLASHED · matched qwen2.5:0.5b** (red for 60 s) | 2–3 min |
+| R4 | Cheater listing (switch Freighter to wallet 2) | `/list`, name `CheapClaude`, endpoint `http://localhost:4001/cheapmax/v1/chat/completions` (secretly qwen2.5:0.5b; its price, $0.012, is read from the endpoint), model `Claude Opus 5.5`, stake 5. Audit runs; the card turns red: **SLASHED · matched qwen2.5:0.5b** (red for 60 s) | 2–3 min |
 | R5 | Slash proof | Click the slash tx link and show the registry contract on stellar.expert | 15 s |
 | R6 | Agent terminal | `pnpm agent`: $0.50 budget, picks **Provider A** (the MiniMax listing), prints the tx. Then `pnpm agent --try-overspend`: **REJECTED: payment … exceeds remaining budget** | 40 s |
 | R7 | Weather API | List `http://localhost:4003/weather/v1/forecast` (Weather API in `/list`), then Try it; paid JSON response | 20 s |

@@ -6,9 +6,11 @@ import { IDLE_AUDIT, type ApiListing, type AuditStatus, type AuditSummary } from
 const cfg = loadConfig();
 const registry = createRegistryClient(cfg);
 export const MODELS = verifiableModels(cfg.minimaxModel);
+/** What every listing must charge in: USDC on Stellar testnet. */
+export const PAYMENT = { network: cfg.network, asset: cfg.usdcContract };
 export const AUDITOR_URL = process.env.AUDITOR_URL ?? `http://localhost:${cfg.auditorPort}`;
 
-type RawAudit = AuditSummary & { listingId?: string; provider: string; name: string; verdict?: { score: number; matchedModel: string; confidence: number; pass: boolean; inconclusive: boolean; unverifiable?: boolean }; probes?: unknown[] };
+type RawAudit = AuditSummary & { listingId?: string; provider: string; name: string; verdict?: { score: number; matchedModel: string; confidence: number; pass: boolean; inconclusive: boolean; scored?: number; unverifiable?: boolean }; probes?: unknown[] };
 
 export async function fetchAudits(): Promise<RawAudit[]> {
   try {
@@ -21,7 +23,7 @@ export async function fetchAudits(): Promise<RawAudit[]> {
 
 const summarize = (a: RawAudit): AuditSummary => ({
   at: a.at, score: a.verdict!.score, matchedModel: a.verdict!.matchedModel, confidence: a.verdict!.confidence,
-  pass: a.verdict!.pass, inconclusive: a.verdict!.inconclusive, unverifiable: a.verdict!.unverifiable, slashTx: a.slashTx, slashedAtomic: a.slashedAtomic, pauseTx: a.pauseTx,
+  pass: a.verdict!.pass, inconclusive: a.verdict!.inconclusive, scored: a.verdict!.scored, probes: a.probes?.length, unverifiable: a.verdict!.unverifiable, slashTx: a.slashTx, slashedAtomic: a.slashedAtomic, pauseTx: a.pauseTx,
 });
 
 export async function listingsWithAudits(): Promise<ApiListing[]> {

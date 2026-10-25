@@ -1,6 +1,6 @@
 import { price, usdc, SLASHED_VISIBLE_MS, type ApiListing, type AuditStatus } from './types.ts';
 
-export type StallState = 'open' | 'review' | 'auditing' | 'slashed' | 'unverifiable' | 'api';
+export type StallState = 'open' | 'review' | 'auditing' | 'slashed' | 'unverifiable' | 'api' | 'unscored';
 export type StallView = {
   sign: string;
   kind: 'INFERENCE' | 'WEATHER API';
@@ -26,7 +26,7 @@ export function stallView(l: ApiListing, auditing?: { probe: number; total: numb
     sign: fit(l.name.toUpperCase(), SIGN_MAX),
     kind: isApi ? ('WEATHER API' as const) : ('INFERENCE' as const),
     window: fit((l.claimedModel || '—').toUpperCase(), 22),
-    price: price(l.priceAtomic),
+    price: l.priceAtomic === '0' ? '—' : price(l.priceAtomic),
   };
   const say = (what: string) => `${l.name}: serves ${l.claimedModel || 'an unnamed model'}, ${common.price} per request, ${what}`;
 
@@ -38,6 +38,7 @@ export function stallView(l: ApiListing, auditing?: { probe: number; total: numb
   if (isApi) return { ...common, state: 'api', placard: ['SCHEMA', 'DECLARED'], label: say('schema declared') };
   if (l.verifiable === false || a?.unverifiable) return { ...common, state: 'unverifiable', placard: ['NOT', 'VERIFIED'], label: say('model not verifiable') };
   if (!a) return { ...common, state: 'review', placard: ['UNDER', 'REVIEW'], label: say('under review') };
+  if (a.inconclusive) return { ...common, state: 'unscored', placard: ['NOT', 'SCORED'], label: say('audit could not score enough probes') };
   return { ...common, state: 'open', placard: ['TRUST', String(a.score)], label: say(`trust ${a.score}`) };
 }
 

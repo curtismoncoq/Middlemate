@@ -5,6 +5,10 @@ export type AuditSummary = {
   confidence: number;
   pass: boolean;
   inconclusive?: boolean;
+  /** probes that returned an answer; below the auditor's minimum the audit is not scored */
+  scored?: number;
+  /** probes the audit sent */
+  probes?: number;
   unverifiable?: boolean;
   slashTx?: string;
   slashedAtomic?: string;

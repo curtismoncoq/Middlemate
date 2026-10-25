@@ -25,6 +25,7 @@ export function ListingCard({ listing: l, now, onTry, auditing, preview }: Props
   const isApi = l.claimedModel.startsWith('api:');
   const unverifiable = !isApi && (l.verifiable === false || !!a?.unverifiable);
   const underReview = !a && !isApi && l.verifiable !== false && l.active;
+  const unscored = !!a?.inconclusive && !isApi && !unverifiable;
 
   if (slashed) {
     return (
@@ -68,7 +69,9 @@ export function ListingCard({ listing: l, now, onTry, auditing, preview }: Props
     <span className="pill pill--warning" title="No reference model to compare against">Unverifiable model</span>
   ) : !a ? (
     <span className="pill pill--warning">Under review</span>
-  ) : a.pass && !a.inconclusive ? (
+  ) : unscored ? (
+    <span className="pill pill--warning">Not scored</span>
+  ) : a.pass ? (
     <span className="pill pill--positive">Passed</span>
   ) : (
     <span className="pill pill--warning">Inconclusive</span>
@@ -84,7 +87,9 @@ export function ListingCard({ listing: l, now, onTry, auditing, preview }: Props
         {isApi ? 'Contract' : 'Serves'} <code>{l.claimedModel || '—'}</code>
       </p>
 
-      {a && !isApi && !unverifiable ? (
+      {unscored ? (
+        <p className="card__note card__note--warn">{`The auditor couldn't score it: ${a!.scored ?? 0} of ${a!.probes ?? 6} probes answered. It will try again.`}</p>
+      ) : a && !isApi && !unverifiable ? (
         <TrustMeter score={a.score}>
           <span className="meter__score">Trust {a.score}</span>
           <span className="meter__when">audited {ago(a.at, now)}</span>
