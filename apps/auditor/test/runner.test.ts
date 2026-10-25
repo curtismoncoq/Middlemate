@@ -134,4 +134,27 @@ describe('runAudit', () => {
     expect(opts.maxAmountAtomic).toBe(120000n);
     expect(init.signal).toBeDefined();
   });
+
+  it('reports live status: which listing, probe progress and a feed of probe lines', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const { runner, pay } = setup([listing({})], () => 'qq answer');
+    const inner = pay.getMockImplementation()!;
+    let n = 0;
+    pay.mockImplementation(async (...a: Parameters<typeof inner>) => {
+      if (++n === 3) await gate; // pause on the third probe
+      return inner(...a);
+    });
+    expect(runner.status().running).toBe(false);
+    const done = runner.runAudit();
+    await vi.waitFor(() => expect(runner.status().current?.probe).toBe(2));
+    const s = runner.status();
+    expect(s.running).toBe(true);
+    expect(s.current).toMatchObject({ provider: 'GCHEAT', name: 'CheapMax', total: 6 });
+    expect(s.feed.at(-1)?.line).toMatch(/closest qwen2.5:0.5b|wrong|correct/);
+    release();
+    await done;
+    expect(runner.status()).toMatchObject({ running: false, current: null });
+    expect(runner.status().feed.some((f) => /FAIL/.test(f.line))).toBe(true);
+  });
 });

@@ -23,6 +23,13 @@ export type ApiListing = {
   lastAudit?: AuditSummary;
 };
 
+export type AuditStatus = {
+  running: boolean;
+  current: { provider: string; name: string; probe: number; total: number } | null;
+  feed: { at: string; provider: string; name: string; line: string }[];
+};
+export const IDLE_AUDIT: AuditStatus = { running: false, current: null, feed: [] };
+
 export type CatalogState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ok'; listings: ApiListing[] };
 
 export const SLASHED_VISIBLE_MS = 60_000;

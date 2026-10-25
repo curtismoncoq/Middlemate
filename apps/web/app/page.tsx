@@ -1,16 +1,18 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Catalog } from '../components/Catalog.tsx';
+import { AuditFeed } from '../components/AuditFeed.tsx';
 import { TryItPanel } from '../components/TryItPanel.tsx';
 import { useWallet } from '../components/WalletContext.tsx';
-import type { ApiListing, CatalogState } from '../lib/types.ts';
+import { IDLE_AUDIT, type ApiListing, type AuditStatus, type CatalogState } from '../lib/types.ts';
 
 const POLL_MS = 3000;
 
 export default function CatalogPage() {
   const [state, setState] = useState<CatalogState>({ status: 'loading' });
   const [now, setNow] = useState(() => Date.now());
-  const [auditing, setAuditing] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [audit, setAudit] = useState<AuditStatus>(IDLE_AUDIT);
   const [trying, setTrying] = useState<ApiListing | null>(null);
   const wallet = useWallet();
 
@@ -22,6 +24,7 @@ export default function CatalogPage() {
         const j = await r.json();
         if (!alive) return;
         setState(r.ok ? { status: 'ok', listings: j.listings } : { status: 'error', message: j.error ?? `HTTP ${r.status}` });
+        if (r.ok) setAudit(j.audit ?? IDLE_AUDIT);
       } catch (e) {
         if (alive) setState({ status: 'error', message: (e as Error).message });
       }
@@ -36,12 +39,11 @@ export default function CatalogPage() {
   }, []);
 
   const runAudit = async () => {
-    setAuditing(true);
+    setStarting(true);
     try {
       await fetch('/api/audit/run', { method: 'POST', body: '{}' });
     } finally {
-      // The round runs in the background; results stream into the catalog via polling.
-      setTimeout(() => setAuditing(false), 8000);
+      setStarting(false); // progress now comes from the auditor's live status (polled with the listings)
     }
   };
 
@@ -55,11 +57,12 @@ export default function CatalogPage() {
             that they serve the model they claim. Liars lose their stake.
           </p>
         </div>
-        <button className="btn btn--audit" onClick={runAudit} disabled={auditing}>
-          {auditing ? 'Audit started — probes in flight' : 'Run audit now'}
+        <button className="btn btn--audit" onClick={runAudit} disabled={starting || audit.running}>
+          {audit.running ? 'Audit in progress…' : starting ? 'Starting audit…' : 'Run audit now'}
         </button>
       </section>
-      <Catalog state={state} now={now} onTry={setTrying} />
+      <AuditFeed status={audit} />
+      <Catalog state={state} now={now} onTry={setTrying} audit={audit} />
       {trying && <TryItPanel key={trying.provider} listing={trying} pay={wallet.pay} onClose={() => setTrying(null)} />}
     </>
   );

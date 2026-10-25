@@ -1,8 +1,8 @@
 import { ago, price, txUrl, usdc, type ApiListing } from '../lib/types.ts';
 
-type Props = { listing: ApiListing; now: number; onTry?: (l: ApiListing) => void };
+type Props = { listing: ApiListing; now: number; onTry?: (l: ApiListing) => void; auditing?: { probe: number; total: number } };
 
-export function ListingCard({ listing: l, now, onTry }: Props) {
+export function ListingCard({ listing: l, now, onTry, auditing }: Props) {
   const a = l.lastAudit;
   const slashed = !!a && !a.pass && !!a.slashTx;
 
@@ -34,7 +34,12 @@ export function ListingCard({ listing: l, now, onTry }: Props) {
   }
 
   return (
-    <article className="card" aria-label={l.name}>
+    <article className={`card ${auditing ? 'card--auditing' : ''}`} aria-label={l.name}>
+      {auditing && (
+        <div className="auditing">
+          <span className="pulse" /> Being audited · probe {auditing.probe}/{auditing.total}
+        </div>
+      )}
       <header className="card__head">
         <h3>{l.name}</h3>
         {!a ? (

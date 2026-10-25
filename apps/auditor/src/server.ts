@@ -43,6 +43,7 @@ app.use((_req, res, next) => {
   next();
 });
 app.get('/audits', (_req, res) => res.json(store.all()));
+app.get('/audit/status', (_req, res) => res.json(runner.status()));
 // Starts a round and returns at once (rounds take minutes; clients poll /audits). `?wait=1` blocks until done.
 app.post('/audit/run', async (req, res) => {
   const round = runner.runAudit(req.body?.provider);

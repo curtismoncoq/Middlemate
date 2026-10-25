@@ -1,7 +1,7 @@
 import 'server-only';
 import { loadConfig } from '@tb/config';
 import { createRegistryClient } from '@tb/registry-client';
-import type { ApiListing, AuditSummary } from './types.ts';
+import { IDLE_AUDIT, type ApiListing, type AuditStatus, type AuditSummary } from './types.ts';
 
 const cfg = loadConfig();
 const registry = createRegistryClient(cfg);
@@ -29,4 +29,13 @@ export async function listingsWithAudits(): Promise<ApiListing[]> {
     const last = audits.find((a) => a.provider === l.provider); // audits are newest first
     return { ...l, priceAtomic: String(l.priceAtomic), stakeAtomic: String(l.stakeAtomic), lastAudit: last ? summarize(last) : undefined };
   });
+}
+
+export async function fetchAuditStatus(): Promise<AuditStatus> {
+  try {
+    const r = await fetch(`${AUDITOR_URL}/audit/status`, { cache: 'no-store', signal: AbortSignal.timeout(2000) });
+    return r.ok ? ((await r.json()) as AuditStatus) : IDLE_AUDIT;
+  } catch {
+    return IDLE_AUDIT;
+  }
 }
