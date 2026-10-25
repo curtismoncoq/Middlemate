@@ -7,7 +7,7 @@ type Stored = Omit<Listing, 'priceAtomic' | 'stakeAtomic'> & { priceAtomic: stri
 type Db = { seq: number; listings: Stored[] };
 
 /** JSON-file registry with the same rules as the Soroban contract (REGISTRY_MODE=offchain). */
-export function createOffchainRegistry(file: string, roles: { auditor: string }): RegistryClient {
+export function createOffchainRegistry(file: string, roles: { auditor: string; admin?: string }): RegistryClient {
   const read = (): Db => (existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : { seq: 0, listings: [] });
   const write = (db: Db) => {
     mkdirSync(path.dirname(file), { recursive: true });
@@ -64,6 +64,16 @@ export function createOffchainRegistry(file: string, roles: { auditor: string })
       const r = tx(db);
       write(db);
       return { ...r, amountAtomic };
+    },
+    async unregister(secret, provider) {
+      const caller = Keypair.fromSecret(secret).publicKey();
+      const db = read();
+      const l = find(db, provider);
+      if (caller !== provider && caller !== roles.admin) throw new Error('Unauthorized');
+      db.listings = db.listings.filter((x) => x.provider !== provider);
+      const r = tx(db);
+      write(db);
+      return { ...r, refundedAtomic: BigInt(l.stakeAtomic) };
     },
     async pauseListing(auditorSecret, provider) {
       asAuditor(auditorSecret);

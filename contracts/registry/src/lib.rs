@@ -23,6 +23,8 @@ pub enum Error {
     NotRegistered = 2,
     /// NonPositiveAmount
     NonPositiveAmount = 3,
+    /// Unauthorized
+    Unauthorized = 4,
 }
 
 #[contracttype]
@@ -57,6 +59,13 @@ pub struct Slashed {
 pub struct ListingPaused {
     #[topic]
     pub provider: Address,
+}
+
+#[contractevent]
+pub struct Unregistered {
+    #[topic]
+    pub provider: Address,
+    pub refunded: i128,
 }
 
 #[contract]
@@ -147,6 +156,29 @@ impl Registry {
             ListingPaused { provider }.publish(e);
         }
         Ok(())
+    }
+
+    /// Removes a listing and refunds any remaining stake to the provider. Callable by the provider or the admin.
+    pub fn unregister(e: &Env, caller: Address, provider: Address) -> Result<i128, Error> {
+        caller.require_auth();
+        if caller != provider && access_control::get_admin(e) != Some(caller) {
+            return Err(Error::Unauthorized);
+        }
+        let l = load(e, &provider)?;
+        if l.stake > 0 {
+            token_client(e).transfer(&e.current_contract_address(), &provider, &l.stake);
+        }
+        e.storage().persistent().remove(&Key::Listing(provider.clone()));
+        let providers: Vec<Address> = e.storage().instance().get(&Key::Providers).unwrap();
+        let mut kept = Vec::new(e);
+        for p in providers.iter() {
+            if p != provider {
+                kept.push_back(p);
+            }
+        }
+        e.storage().instance().set(&Key::Providers, &kept);
+        Unregistered { provider, refunded: l.stake }.publish(e);
+        Ok(l.stake)
     }
 
     pub fn is_active(e: &Env, provider: Address) -> bool {

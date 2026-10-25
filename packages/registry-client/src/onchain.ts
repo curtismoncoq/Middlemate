@@ -13,6 +13,7 @@ type RegistryMethods = {
   stake(a: { provider: string; amount: bigint }): Promise<Assembled<unknown>>;
   slash(a: { caller: string; provider: string }): Promise<Assembled<unknown>>;
   pause_listing(a: { caller: string; provider: string }): Promise<Assembled<unknown>>;
+  unregister(a: { caller: string; provider: string }): Promise<Assembled<unknown>>;
 };
 
 const toListing = (r: RawListing): Listing => ({
@@ -29,7 +30,7 @@ const toListing = (r: RawListing): Listing => ({
 function unwrap<T>(value: unknown): T {
   const v = value as { isErr?: () => boolean; unwrap?: () => T; unwrapErr?: () => { message: string } };
   if (v && typeof v.isErr === 'function') {
-    if (v.isErr()) throw new Error(v.unwrapErr!().message || 'contract rejected the call (already registered, not registered, or amount <= 0)');
+    if (v.isErr()) throw new Error(v.unwrapErr!().message || 'contract rejected the call (already registered, not registered, unauthorized, or amount <= 0)');
     return v.unwrap!();
   }
   return value as T;
@@ -92,6 +93,11 @@ export function createOnchainRegistry(cfg: Pick<Config, 'rpcUrl' | 'networkPassp
       const tx = await (await clientFor(auditorSecret)).slash({ caller: addr(auditorSecret), provider });
       const { hash, value } = await send<bigint>(tx);
       return { hash, amountAtomic: BigInt(value) };
+    },
+    async unregister(secret, provider) {
+      const tx = await (await clientFor(secret)).unregister({ caller: addr(secret), provider });
+      const { hash, value } = await send<bigint>(tx);
+      return { hash, refundedAtomic: BigInt(value) };
     },
     async pauseListing(auditorSecret, provider) {
       const tx = await (await clientFor(auditorSecret)).pause_listing({ caller: addr(auditorSecret), provider });

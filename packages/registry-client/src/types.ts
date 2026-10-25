@@ -20,6 +20,8 @@ export interface RegistryClient {
   stake(secret: string, amountAtomic: bigint): Promise<TxResult>;
   slash(auditorSecret: string, provider: string): Promise<TxResult & { amountAtomic: bigint }>;
   pauseListing(auditorSecret: string, provider: string): Promise<TxResult>;
+  /** removes a listing and refunds remaining stake; signer must be the provider or the admin */
+  unregister(secret: string, provider: string): Promise<TxResult & { refundedAtomic: bigint }>;
 }
 
 export const USDC_DECIMALS = 7;
