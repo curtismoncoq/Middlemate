@@ -27,7 +27,8 @@ export type Config = {
   webPort: number;
 };
 
-export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+// TB_REPO_ROOT lets bundlers (Next.js) that relocate this file still find the repo.
+export const REPO_ROOT = process.env.TB_REPO_ROOT ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
 const envName = (role: Role) => role.replace(/[A-Z]/g, (c) => '_' + c).toUpperCase();
 

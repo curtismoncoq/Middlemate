@@ -6,3 +6,4 @@ target/
 .next/
 !.env.example
 data/
+.next/
