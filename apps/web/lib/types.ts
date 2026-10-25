@@ -20,12 +20,21 @@ export type ApiListing = {
   priceAtomic: string;
   stakeAtomic: string;
   active: boolean;
+  /** claimed model is in the verifiable registry (false = auditor can't check it) */
+  verifiable?: boolean;
   lastAudit?: AuditSummary;
 };
 
+export type AuditStatus = {
+  running: boolean;
+  current: { provider: string; name: string; probe: number; total: number } | null;
+  feed: { at: string; provider: string; name: string; line: string }[];
+};
+export const IDLE_AUDIT: AuditStatus = { running: false, current: null, feed: [] };
+
 export type CatalogState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ok'; listings: ApiListing[] };
 
-export const SLASHED_VISIBLE_MS = 20_000;
+export const SLASHED_VISIBLE_MS = 60_000;
 export const txUrl = (hash: string) => `https://stellar.expert/explorer/testnet/tx/${hash}`;
 export const usdc = (atomic: string | bigint) => Number(atomic) / 1e7;
 export const price = (atomic: string) => `$${String(+usdc(atomic).toFixed(4))}`;

@@ -14,6 +14,7 @@ struct Setup<'a> {
     env: Env,
     reg: RegistryClient<'a>,
     token: TokenClient<'a>,
+    admin: Address,
     auditor: Address,
     treasury: Address,
 }
@@ -28,7 +29,7 @@ fn setup() -> Setup<'static> {
     let id = env.register(Registry, (admin.clone(), auditor.clone(), sac.address(), treasury.clone()));
     let reg = RegistryClient::new(&env, &id);
     let token = TokenClient::new(&env, &sac.address());
-    Setup { env, reg, token, auditor, treasury }
+    Setup { env, reg, token, admin, auditor, treasury }
 }
 
 fn funded_provider(s: &Setup) -> Address {
@@ -167,4 +168,67 @@ fn unknown_provider_is_not_active_and_get_is_none() {
     let p = Address::generate(&s.env);
     assert!(!s.reg.is_active(&p));
     assert!(s.reg.get(&p).is_none());
+}
+
+#[test]
+fn provider_unregister_refunds_stake_and_removes_listing() {
+    let s = setup();
+    let p = funded_provider(&s);
+    register(&s, &p, "A");
+    s.reg.stake(&p, &TEN);
+    s.reg.unregister(&p, &p);
+    assert!(s.reg.get(&p).is_none());
+    assert_eq!(s.reg.list().len(), 0);
+    assert_eq!(s.token.balance(&p), 3 * TEN);
+    assert_eq!(s.token.balance(&s.reg.address), 0);
+}
+
+#[test]
+fn admin_can_unregister_any_listing() {
+    let s = setup();
+    let p = funded_provider(&s);
+    register(&s, &p, "A");
+    s.reg.stake(&p, &TEN);
+    s.reg.unregister(&s.admin, &p);
+    assert!(s.reg.get(&p).is_none());
+    assert_eq!(s.token.balance(&p), 3 * TEN);
+}
+
+#[test]
+fn stranger_cannot_unregister() {
+    let s = setup();
+    let p = funded_provider(&s);
+    register(&s, &p, "A");
+    let rando = Address::generate(&s.env);
+    assert_eq!(s.reg.try_unregister(&rando, &p), Err(Ok(Error::Unauthorized)));
+}
+
+#[test]
+fn unregister_after_slash_refunds_nothing() {
+    let s = setup();
+    let p = funded_provider(&s);
+    register(&s, &p, "CheapMax");
+    s.reg.stake(&p, &TEN);
+    s.reg.slash(&s.auditor, &p);
+    s.reg.unregister(&p, &p);
+    assert_eq!(s.token.balance(&p), 2 * TEN);
+    assert_eq!(s.token.balance(&s.treasury), TEN);
+}
+
+#[test]
+fn can_register_again_after_unregister() {
+    let s = setup();
+    let p = funded_provider(&s);
+    register(&s, &p, "A");
+    s.reg.unregister(&p, &p);
+    register(&s, &p, "A2");
+    assert_eq!(s.reg.list().len(), 1);
+    assert_eq!(s.reg.get(&p).unwrap().name, String::from_str(&s.env, "A2"));
+}
+
+#[test]
+fn unregister_unknown_fails() {
+    let s = setup();
+    let p = Address::generate(&s.env);
+    assert_eq!(s.reg.try_unregister(&p, &p), Err(Ok(Error::NotRegistered)));
 }

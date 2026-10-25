@@ -7,7 +7,11 @@ import { loadConfig, type Config } from '@tb/config';
 
 export type Payment = { txHash: string; payer: string };
 export type PaidResponse = Response & { payment?: Payment };
-export type PayingFetch = (url: string | URL, init?: RequestInit) => Promise<PaidResponse>;
+export type PayOpts = {
+  /** refuse to pay a 402 challenge asking for more than this (token atomic units) — e.g. the listing's registered price */
+  maxAmountAtomic?: bigint;
+};
+export type PayingFetch = (url: string | URL, init?: RequestInit, opts?: PayOpts) => Promise<PaidResponse>;
 
 type Opts = { paymentsMode?: Config['paymentsMode']; fetchImpl?: typeof fetch };
 
@@ -28,9 +32,14 @@ export function createPayingFetch(secret: string, opts: Opts = {}): PayingFetch 
   }
 
   const signer = createEd25519Signer(secret, 'stellar:testnet');
-  const client = new x402Client().register('stellar:*', new ExactStellarScheme(signer));
-  const paid = wrapFetchWithPayment(base, client);
-  return async (url, init) => {
+  const scheme = new ExactStellarScheme(signer);
+  const uncapped = wrapFetchWithPayment(base, new x402Client().register('stellar:*', scheme));
+  return async (url, init, payOpts = {}) => {
+    const cap = payOpts.maxAmountAtomic;
+    const paid =
+      cap === undefined
+        ? uncapped
+        : wrapFetchWithPayment(base, new x402Client().register('stellar:*', scheme).registerPolicy(capPolicy(cap)));
     const res = (await paid(url, init)) as PaidResponse;
     const header = res.headers.get('PAYMENT-RESPONSE') ?? res.headers.get('X-PAYMENT-RESPONSE');
     if (header) {
@@ -38,5 +47,17 @@ export function createPayingFetch(secret: string, opts: Opts = {}): PayingFetch 
       if (settled.transaction) res.payment = { txHash: settled.transaction, payer };
     }
     return res;
+  };
+}
+
+/** x402 policy: keep only payment options at or under `cap`; throw if the provider asks for more. */
+export function capPolicy(cap: bigint) {
+  return (_v: number, reqs: { amount: string }[]) => {
+    const ok = reqs.filter((r) => BigInt(r.amount) <= cap);
+    if (ok.length === 0) {
+      const asked = reqs.map((r) => BigInt(r.amount)).reduce((a, b) => (a < b ? a : b));
+      throw new Error(`provider asks for ${asked} > cap ${cap} (atomic units) — refusing to pay`);
+    }
+    return ok as never;
   };
 }

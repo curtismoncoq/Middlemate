@@ -1,4 +1,5 @@
 import { ListForm } from '../../components/ListForm.tsx';
+import { MODELS } from '../../lib/server.ts';
 
 export default function ListPage() {
   return (
@@ -8,7 +9,7 @@ export default function ListPage() {
         Declare what you serve and lock a stake in the Soroban registry. The auditor will buy from you like any customer. If your answers
         don&apos;t match the model you claim, your stake is slashed and the listing is removed.
       </p>
-      <ListForm />
+      <ListForm models={MODELS.map(({ id, label }) => ({ id, label }))} />
     </section>
   );
 }

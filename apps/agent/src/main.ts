@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { loadConfig, REPO_ROOT } from '@tb/config';
+import { loadConfig, REPO_ROOT, verifiableModels } from '@tb/config';
 import { createRegistryClient, type RegistryClient } from '@tb/registry-client';
 import { createPayingFetch, type PayingFetch } from '@tb/x402-client';
 import { BudgetGuard, usd } from './budget.ts';
@@ -16,6 +16,10 @@ type AgentDeps = {
   article: string;
   budgetAtomic: bigint;
   guard?: BudgetGuard;
+  /** only buy models the auditor can verify (unset = no filter) */
+  verifiable?: Set<string>;
+  /** only buy listings that passed an audit (unset = no filter) */
+  isTrusted?: (provider: string) => boolean;
   /** number of summaries requested in one job (overspend demo asks for many) */
   jobs?: number;
 };
@@ -29,14 +33,19 @@ export async function runAgent(d: AgentDeps): Promise<AgentResult> {
   const exclude = new Set<string>();
 
   for (;;) {
-    const pick = chooseListing(await d.registry.list(), d.model, exclude);
+    const pick = chooseListing(await d.registry.list(), d.model, exclude, d.verifiable);
     if (!pick) {
-      d.log(`[agent] no active provider for ${d.model} — stopping, nothing paid`);
+      d.log(`[agent] no active ${d.verifiable ? 'verifiable ' : ''}provider for ${d.model} — stopping, nothing paid`);
       return { paidTo: null };
     }
     d.log(`[agent] picked ${pick.name} at ${usd(pick.priceAtomic)}/request (cheapest ${d.model})`);
     if (!(await d.registry.isActive(pick.provider))) {
       d.log(`[agent] ${pick.name} was delisted → rerouting`);
+      exclude.add(pick.provider);
+      continue;
+    }
+    if (d.isTrusted && !d.isTrusted(pick.provider)) {
+      d.log(`[agent] ${pick.name} not audited yet (under review) → skipping`);
       exclude.add(pick.provider);
       continue;
     }
@@ -48,11 +57,16 @@ export async function runAgent(d: AgentDeps): Promise<AgentResult> {
 
     let res: Awaited<ReturnType<PayingFetch>>;
     try {
-      res = await d.pay(pick.endpoint, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ messages: [{ role: 'user', content: `Summarize this article in 3 bullet points:\n\n${d.article}` }] }),
-      });
+      res = await d.pay(
+        pick.endpoint,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ messages: [{ role: 'user', content: `Summarize this article in 3 bullet points:\n\n${d.article}` }] }),
+          signal: AbortSignal.timeout(45_000),
+        },
+        { maxAmountAtomic: pick.priceAtomic }, // never pay more than the registered price
+      );
     } catch (e) {
       d.log(`[agent] ${pick.name} failed (${(e as Error).message}) → trying the next provider`);
       exclude.add(pick.provider);
@@ -96,7 +110,20 @@ async function cli() {
     const marketplaceUrl = process.env.TRUSTBAZAAR_URL ?? 'http://localhost:3000';
     await runWeatherRequest({ registry, pay, log: console.log, guard, schemaUrl: `${marketplaceUrl.replace(/\/$/, '')}/api/schemas/weather/v1` }, { latitude, longitude, forecastHours: Number(arg('hours') ?? 1) });
   } else {
-    await runAgent({ registry, pay, log: console.log, model, article, budgetAtomic, guard, jobs });
+    // Trust = the latest audit of a listing passed (and wasn't inconclusive). Auditor down → no filter, with a warning.
+    let isTrusted: ((p: string) => boolean) | undefined;
+    try {
+      const audits = (await (await fetch(`http://localhost:${cfg.auditorPort}/audits`, { signal: AbortSignal.timeout(3000) })).json()) as { provider: string; verdict: { pass: boolean; inconclusive: boolean } }[];
+      const latest = new Map<string, boolean>();
+      for (const a of audits) if (!latest.has(a.provider)) latest.set(a.provider, a.verdict.pass && !a.verdict.inconclusive);
+      isTrusted = (p) => latest.get(p) === true;
+    } catch {
+      console.log('[agent] auditor unreachable — buying without the audit check');
+    }
+    await runAgent({
+      registry, pay, isTrusted, log: console.log, model, article, budgetAtomic, guard, jobs,
+      verifiable: process.argv.includes('--allow-unverifiable') ? undefined : new Set(verifiableModels(cfg.minimaxModel).map((m) => m.id)),
+    });
   }
 
   mkdirSync(path.dirname(SPEND_FILE), { recursive: true });

@@ -14,10 +14,10 @@ x402 lets anyone sell an API per request: no accounts, no API keys. Agents are s
 flowchart LR
   subgraph Buyers
     H[Human in browser<br/>Freighter via Stellar Wallets Kit]
-    A[AI agent<br/>$0.50 budget]
+    A[AI agent<br/>$20 wallet · $0.50 budget]
   end
   W[TrustBazaar web<br/>catalog · audit log · list form]
-  R[(Soroban registry<br/>register · stake · slash · pause_listing)]
+  R[(Soroban registry<br/>register · stake · slash · pause_listing · unregister)]
   P[Providers<br/>x402 paywalled /v1/chat/completions]
   AU[Auditor<br/>hidden probes · fingerprints]
   F[x402 facilitator<br/>settles USDC]
@@ -32,7 +32,7 @@ flowchart LR
 ```
 
 1. **Providers stake.** To list an endpoint, a provider declares the model it serves and a price, and locks USDC in the registry contract (`register`, `stake`).
-2. **Buyers pay per request.** Humans pay from Freighter in the browser. The agent pays from its own wallet with a $0.50 budget. Payments go **directly to the provider** over x402 (Soroban auth-entry signing of a USDC transfer); TrustBazaar is never a middleman.
+2. **Buyers pay per request.** Humans pay from Freighter in the browser. The agent pays from its own wallet under a $0.50 spending policy, although the wallet holds more. Payments go **directly to the provider** over x402 (Soroban auth-entry signing of a USDC transfer); TrustBazaar is never a middleman.
 3. **The auditor catches liars.** It is a paying customer like any other. It sends randomized hidden probes:
    - *checkable* probes with known answers (multi-step arithmetic, strict formatting, extraction)
    - *fingerprint* probes, whose answers are embedded and compared with answers from reference models we can query (MiniMax-M2.7 via API, `llama3.2:3b` and `qwen2.5:0.5b` via Ollama)
@@ -52,7 +52,7 @@ Calibration over 3 rounds: Provider A scored 83/100/83, Provider B 70/85/85, and
 
 ## Proof on testnet
 
-- Registry contract: [`CAHJN3HANWQVJUPQO43PXLCCK4ZAA2Y2EOJYTI7WJAO4WYWFB34GSH2D`](https://stellar.expert/explorer/testnet/contract/CAHJN3HANWQVJUPQO43PXLCCK4ZAA2Y2EOJYTI7WJAO4WYWFB34GSH2D)
+- Registry contract: [`CCW4UFJ7MSNSWOQWZWG3XOF2IVVWVRINK3YCEROH6PDO4LW5ZPA6ELUA`](https://stellar.expert/explorer/testnet/contract/CCW4UFJ7MSNSWOQWZWG3XOF2IVVWVRINK3YCEROH6PDO4LW5ZPA6ELUA). The transactions below ran on the first version, [`CAHJN3…SH2D`](https://stellar.expert/explorer/testnet/contract/CAHJN3HANWQVJUPQO43PXLCCK4ZAA2Y2EOJYTI7WJAO4WYWFB34GSH2D), which had no `unregister`.
 - First x402 payment (agent → provider): [`0ddff7b0…`](https://stellar.expert/explorer/testnet/tx/0ddff7b02f53dcfec78df221ed49c7a32b73118bc4e1c00d63aaf23f91ce4c74)
 - Human payment from Freighter in the browser: [`5a602447…`](https://stellar.expert/explorer/testnet/tx/5a6024470f23f42c49ea21a0eeee8ac9f56074787e34f951e7430760d5e9b3b4)
 - **CheapMax slashed by the auditor**: [`abfa5a43…`](https://stellar.expert/explorer/testnet/tx/abfa5a43b63a91bb5acf34b8025615d581624b1a8227c7e81cddc3422214fb4c), delisted: [`e6fcbae4…`](https://stellar.expert/explorer/testnet/tx/e6fcbae4e4730e06c409d1169d62aec8c4c4106f56560aa9b1b3f4ce6880cf30)
@@ -65,6 +65,11 @@ Calibration over 3 rounds: Provider A scored 83/100/83, Provider B 70/85/85, and
 | Contract | Soroban (soroban-sdk 28) with **OpenZeppelin Stellar Contracts 0.8**: Access Control (`auditor` role, `#[only_role]`), Pausable (registry-wide emergency stop) |
 | Staking | Stellar Asset Contract (USDC) transfers into and out of the registry |
 | Wallets | **Freighter** via Stellar Wallets Kit: `signAuthEntry` for x402, `signTransaction` for register/stake |
+
+## Model registry and audit economics
+
+- **Only verifiable models can earn trust.** The listing form offers a dropdown of the models the auditor can check (one registry in `@tb/config`: MiniMax-M2.7, llama3.2:3b, qwen2.5:0.5b). "Other" is allowed only with an explicit acknowledgement. Such listings carry an *Unverifiable model* warning and no trust score, the agent skips them by default, and they are never slashed.
+- **An audit costs money on both sides.** The auditor pays every probe like a customer (recorded per audit in the log: catching CheapMax costs about $0.07 of probes, against a $5 stake). It also pays for reference inference from hosted models (MiniMax). Reference answers are cached on disk per prompt for 24 h, so a round of audits shares one set of reference calls. In production, slashed stakes in the treasury plus a listing fee would fund auditing.
 
 ## Run it
 
@@ -82,22 +87,24 @@ pnpm seed                                   # registers and stakes the three lis
 pnpm dev                                    # web :3000, providers :4001, auditor :4002
 pnpm agent                                  # the agent buys a summary
 pnpm agent --try-overspend                  # the budget rejects a $2.00 job
-pnpm demo:reset                             # fresh CheapMax after a slash
+pnpm demo:reset                             # unregister everything (refunds), seed + audit Provider A
 ```
 
-Tests: `pnpm test` (59 TypeScript tests) and `cargo test -p registry` (11 contract tests). The video walkthrough is in [`docs/demo-runbook.md`](docs/demo-runbook.md).
+Tests: `pnpm test` (77 TypeScript tests) and `cargo test -p registry` (11 contract tests). The video walkthrough is in [`docs/demo-runbook.md`](docs/demo-runbook.md).
 
 ## Honest limits
 
 - **The audit is statistical.** It can produce false positives and false negatives. MiniMax answers vary between runs (one of Provider A's probes landed nearest qwen), which is why the score blends several probes and a verdict needs at least 5 of them.
 - **A smart cheater could detect probes**, or forward probes to the real model while serving cheap answers to everyone else. Randomized prompts drawn from a pool, plus probes paid like normal traffic, reduce this but don't remove it.
-- **We can only verify models we can query as a reference.** A listing that claims anything else (e.g. a closed model) is marked *Unverifiable* and is never slashed.
+- **We can only verify models we can query as a reference.** A listing that claims anything else is marked *Unverifiable* and is never slashed. Hosted closed models can be added the same way MiniMax is (query the vendor's official API as the reference), given an API key.
+- **Cached references trade freshness for cost.** A provider whose model changes behaviour is compared against answers up to 24 h old.
+- **The model registry is off-chain** (the contract is frozen for the hackathon). An on-chain, governed registry is future work.
 - **The seed providers are ours**, including the cheater. Providers and auditor references share one local Ollama instance; in production the reference would be hosted independently.
-- **The agent's spending cap is enforced in the agent's code, off-chain.** The on-chain version (an OpenZeppelin smart account with a spending-limit policy) is blocked today by an x402 facilitator bug with policy events ([x402#3352](https://github.com/x402-foundation/x402/issues/3352)). The agent's wallet only holds $0.50, which bounds the worst case.
+- **The agent's spending cap is enforced in the agent's code, off-chain.** The demo agent's wallet holds about $20 while its policy allows $0.50, and it refuses any 402 asking more than the registered price. A compromised agent process could ignore that check. The on-chain version (an OpenZeppelin smart account with a spending-limit policy) is blocked today by an x402 facilitator bug with policy events ([x402#3352](https://github.com/x402-foundation/x402/issues/3352)).
 - **The facilitator is self-hosted** (in-process, built from the official x402 libraries, with our admin key paying fees) rather than the hosted OpenZeppelin facilitator, which requires an API key.
-- **No unstake yet.** Stake can only be slashed; a withdrawal with a cooldown is future work.
+- **`unregister` refunds stake immediately** (provider or admin). That's enough to reset the demo, but in production it lets a cheater who senses an audit pull its stake before the slash lands. Production needs an unstake request plus a cooldown during which the stake stays slashable.
 - **Weather demo APIs are synthetic local fixtures.** `pnpm demo:weather` starts three endpoints on your machine and does not list them automatically. Submit one through `/list`; with `REGISTRY_MODE=onchain` the listing and stake are registered on Stellar Testnet and require wallet signatures. Requests to these fixtures use simulated x402 payments, so they do not move USDC and are excluded from earnings/spend. The dashboard reads confirmed USDC transfer events from Stellar Testnet RPC; RPC event history is limited to about seven days. Forecast values are fixtures, not real-world weather, and API-specific truth audits are future work.
-- **Providers cannot self-pause in the registry.** The deployed registry only permits the auditor to call `pause_listing`. A provider can stop serving by disabling the API at its host; provider-controlled registry pause needs a contract change.
+- **Providers cannot self-pause in the registry.** Only the auditor can call `pause_listing`. A provider can `unregister` (stake refunded) or stop serving at its host.
 - **Wallets:** the live marketplace is on Stellar Testnet and currently uses Freighter. MetaMask's available Stellar adapter supports PUBNET only, so it cannot safely sign this app's Testnet payment or registry operations yet.
 - **Testnet only.** Nothing here has been audited.
 

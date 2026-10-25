@@ -1,27 +1,47 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { minimaxBackend, ollamaBackend, type Backend } from '@tb/providers/backends';
-import type { Config } from '@tb/config';
+import { verifiableModels, type Config } from '@tb/config';
 
-export const REFERENCE_MODELS = (cfg: Config) => ({
-  [cfg.minimaxModel]: minimaxBackend(cfg.minimaxBaseUrl, cfg.minimaxApiKey ?? '', cfg.minimaxModel),
-  'llama3.2:3b': ollamaBackend(cfg.ollamaUrl, 'llama3.2:3b'),
-  'qwen2.5:0.5b': ollamaBackend(cfg.ollamaUrl, 'qwen2.5:0.5b'),
-});
+export const REFERENCE_MODELS = (cfg: Config): Record<string, Backend> =>
+  Object.fromEntries(
+    verifiableModels(cfg.minimaxModel).map((m) => [
+      m.id,
+      m.reference.kind === 'minimax'
+        ? minimaxBackend(cfg.minimaxBaseUrl, cfg.minimaxApiKey ?? '', cfg.minimaxModel)
+        : ollamaBackend(cfg.ollamaUrl, m.reference.model),
+    ]),
+  );
 
-/** Reference answers per prompt from every model we can host or call, cached for `ttlMs`. */
-export function createReferences(models: Record<string, Backend>, ttlMs = 15 * 60_000) {
-  const cache = new Map<string, { at: number; value: Promise<Record<string, string>> }>();
-  return (prompt: string) => {
-    const hit = cache.get(prompt);
-    if (hit && Date.now() - hit.at < ttlMs) return hit.value;
-    const value = (async () => {
+/**
+ * Reference answers per prompt from every model we can query. Calls to hosted references cost money,
+ * so answers are cached in memory and, with `file`, on disk across restarts, for `ttlMs`.
+ * Concurrent requests for the same prompt share one fetch.
+ */
+export function createReferences(models: Record<string, Backend>, opts: { file?: string; ttlMs?: number } = {}) {
+  const ttlMs = opts.ttlMs ?? 24 * 60 * 60_000;
+  type Entry = { at: number; answers: Record<string, string> };
+  const disk: Record<string, Entry> = opts.file && existsSync(opts.file) ? JSON.parse(readFileSync(opts.file, 'utf8')) : {};
+  const inflight = new Map<string, Promise<Record<string, string>>>();
+  const fresh = (e?: Entry) => !!e && Date.now() - e.at < ttlMs && Object.keys(models).every((m) => m in e.answers);
+
+  return (prompt: string): Promise<Record<string, string>> => {
+    if (fresh(disk[prompt])) return Promise.resolve(disk[prompt].answers);
+    if (inflight.has(prompt)) return inflight.get(prompt)!;
+    const p = (async () => {
       const entries = await Promise.all(
         Object.entries(models).map(async ([m, b]) => [m, await b([{ role: 'user', content: prompt }], { temperature: 0 })] as const),
       );
-      return Object.fromEntries(entries);
-    })();
-    value.catch(() => cache.delete(prompt));
-    cache.set(prompt, { at: Date.now(), value });
-    return value;
+      const answers = Object.fromEntries(entries);
+      disk[prompt] = { at: Date.now(), answers };
+      if (opts.file) {
+        mkdirSync(path.dirname(opts.file), { recursive: true });
+        writeFileSync(opts.file, JSON.stringify(disk, null, 2));
+      }
+      return answers;
+    })().finally(() => inflight.delete(prompt));
+    inflight.set(prompt, p);
+    return p;
   };
 }
 

@@ -86,10 +86,90 @@ describe('runAudit', () => {
     expect(store.all().map((r) => r.provider)).toEqual(['GCHEAT', 'GA']);
   });
 
-  it('never slashes a listing claiming a model with no reference', async () => {
-    const { runner, registry } = setup([listing({ provider: 'GU', name: 'my_endpoint', claimedModel: 'Claude Opus 5.5' })], () => 'll answer', ['MiniMax-M2.7', 'llama3.2:3b', 'qwen2.5:0.5b']);
-    const [rec] = await runner.runAudit();
-    expect(rec.verdict.unverifiable).toBe(true);
+  it('skips listings claiming a model with no reference: no paid probes, no slash', async () => {
+    const { runner, registry, pay } = setup([listing({ provider: 'GU', name: 'my_endpoint', claimedModel: 'Claude Opus 5.5' })], () => 'll answer', ['MiniMax-M2.7', 'llama3.2:3b', 'qwen2.5:0.5b']);
+    const recs = await runner.runAudit();
+    expect(recs).toHaveLength(0);
+    expect(pay).not.toHaveBeenCalled();
     expect(registry.slash).not.toHaveBeenCalled();
+    expect(runner.status().feed.at(-1)?.line).toMatch(/skipped — no reference for Claude Opus 5.5/);
+  });
+
+  it('timestamps the record after the delist lands', async () => {
+    const { runner, registry } = setup([listing({})], () => 'qq answer');
+    let pausedAt = 0;
+    registry.pauseListing.mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 30));
+      pausedAt = Date.now();
+      return { hash: 'pausetx' };
+    });
+    const [rec] = await runner.runAudit();
+    expect(Date.parse(rec.at)).toBeGreaterThanOrEqual(pausedAt);
+  });
+
+  it('audits underpriced claims first (cheapest relative to same-model peers)', async () => {
+    const ls = [
+      listing({ provider: 'GA', name: 'Provider A', endpoint: 'http://p/a', priceAtomic: 200000n }),
+      listing({ provider: 'GB', name: 'Provider B', endpoint: 'http://p/b', claimedModel: 'llama3.2:3b', priceAtomic: 40000n }),
+      listing({}),
+    ];
+    const { runner, pay } = setup(ls, (u) => (u.includes('cheapmax') ? 'qq' : u.endsWith('/b') ? 'll 42 paris' : 'mm 42 paris'));
+    await runner.runAudit();
+    expect(String(pay.mock.calls[0][0])).toContain('cheapmax');
+  });
+
+  it('records the slash and keeps auditing others when pauseListing fails', async () => {
+    const ls = [listing({}), listing({ provider: 'GA', name: 'Provider A', endpoint: 'http://p/a', priceAtomic: 200000n })];
+    const { runner, registry, store } = setup(ls, (u) => (u.includes('cheapmax') ? 'qq' : 'mm 42 paris'));
+    registry.pauseListing.mockRejectedValueOnce(new Error('rpc down'));
+    const recs = await runner.runAudit();
+    expect(recs.map((r) => r.name).sort()).toEqual(['CheapMax', 'Provider A']);
+    const cheat = store.all().find((r) => r.name === 'CheapMax')!;
+    expect(cheat.slashTx).toBe('slashtx');
+    expect(cheat.error).toMatch(/rpc down/);
+  });
+
+  it('pays each probe capped at the listing price with a timeout', async () => {
+    const { runner, pay } = setup([listing({})], () => 'qq');
+    await runner.runAudit();
+    const [, init, opts] = pay.mock.calls[0] as unknown as [string, RequestInit, { maxAmountAtomic: bigint }];
+    expect(opts.maxAmountAtomic).toBe(120000n);
+    expect(init.signal).toBeDefined();
+  });
+
+  it('reports live status: which listing, probe progress and a feed of probe lines', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const { runner, pay } = setup([listing({})], () => 'qq answer');
+    const inner = pay.getMockImplementation()!;
+    let n = 0;
+    pay.mockImplementation(async (...a: Parameters<typeof inner>) => {
+      if (++n === 3) await gate; // pause on the third probe
+      return inner(...a);
+    });
+    expect(runner.status().running).toBe(false);
+    const done = runner.runAudit();
+    await vi.waitFor(() => expect(runner.status().current?.probe).toBe(2));
+    const s = runner.status();
+    expect(s.running).toBe(true);
+    expect(s.current).toMatchObject({ provider: 'GCHEAT', name: 'CheapMax', total: 6 });
+    expect(s.feed.at(-1)?.line).toMatch(/closest qwen2.5:0.5b|wrong|correct/);
+    release();
+    await done;
+    expect(runner.status()).toMatchObject({ running: false, current: null });
+    expect(runner.status().feed.some((f) => /FAIL/.test(f.line))).toBe(true);
+  });
+
+  it('records what the audit spent on paid probes', async () => {
+    const { runner } = setup([listing({})], () => 'qq answer');
+    const [rec] = await runner.runAudit();
+    expect(rec.spentAtomic).toBe(String(6n * 120000n));
+  });
+
+  it('memoryStore.clear empties the log', () => {
+    const st = memoryStore();
+    st.add({ id: '1' } as never);
+    st.clear();
+    expect(st.all()).toEqual([]);
   });
 });

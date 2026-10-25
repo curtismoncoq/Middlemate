@@ -13,6 +13,6 @@ export const OFFCHAIN_FILE = path.join(REPO_ROOT, 'data/registry.offchain.json')
 /** The one way apps talk to the registry; REGISTRY_MODE picks on-chain or off-chain. */
 export function createRegistryClient(cfg: Config = loadConfig()): RegistryClient {
   return cfg.registryMode === 'offchain'
-    ? createOffchainRegistry(OFFCHAIN_FILE, { auditor: cfg.keys.auditor.public })
+    ? createOffchainRegistry(OFFCHAIN_FILE, { auditor: cfg.keys.auditor.public, admin: cfg.keys.admin.public })
     : createOnchainRegistry(cfg);
 }

@@ -8,12 +8,13 @@ import type { NewListing, RegistryClient } from '../src/types.ts';
 
 const TEN = 10_0000000n;
 const auditor = Keypair.random();
+const admin = Keypair.random();
 const listing = (name: string): NewListing => ({ name, endpoint: 'http://x', claimedModel: 'MiniMax-M2.7', priceAtomic: 120000n });
 
 let reg: RegistryClient;
 beforeEach(() => {
   const file = path.join(mkdtempSync(path.join(tmpdir(), 'tb-')), 'registry.json');
-  reg = createOffchainRegistry(file, { auditor: auditor.publicKey() });
+  reg = createOffchainRegistry(file, { auditor: auditor.publicKey(), admin: admin.publicKey() });
 });
 
 describe('offchain registry', () => {
@@ -84,5 +85,31 @@ describe('offchain registry', () => {
     await reg.register(a.secret(), listing('A'));
     await reg.register(b.secret(), listing('B'));
     expect((await reg.list()).map((l) => l.name)).toEqual(['A', 'B']);
+  });
+
+  it('provider can unregister: listing removed and remaining stake refunded', async () => {
+    const p = Keypair.random();
+    await reg.register(p.secret(), listing('A'));
+    await reg.stake(p.secret(), TEN);
+    const r = await reg.unregister(p.secret(), p.publicKey());
+    expect(r.refundedAtomic).toBe(TEN);
+    expect(await reg.get(p.publicKey())).toBeNull();
+    expect(await reg.list()).toHaveLength(0);
+  });
+
+  it('admin can unregister any listing; strangers cannot', async () => {
+    const p = Keypair.random();
+    await reg.register(p.secret(), listing('A'));
+    await expect(reg.unregister(Keypair.random().secret(), p.publicKey())).rejects.toThrow('Unauthorized');
+    await reg.unregister(admin.secret(), p.publicKey());
+    expect(await reg.list()).toHaveLength(0);
+  });
+
+  it('unregister after a slash refunds nothing', async () => {
+    const p = Keypair.random();
+    await reg.register(p.secret(), listing('CheapMax'));
+    await reg.stake(p.secret(), TEN);
+    await reg.slash(auditor.secret(), p.publicKey());
+    expect((await reg.unregister(p.secret(), p.publicKey())).refundedAtomic).toBe(0n);
   });
 });

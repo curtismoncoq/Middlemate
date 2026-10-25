@@ -1,10 +1,11 @@
-import { listingsWithAudits } from '../../../lib/server.ts';
+import { fetchAuditStatus, listingsWithAudits } from '../../../lib/server.ts';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    return Response.json({ listings: await listingsWithAudits() });
+    const [listings, audit] = await Promise.all([listingsWithAudits(), fetchAuditStatus()]);
+    return Response.json({ listings, audit });
   } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 503 });
   }

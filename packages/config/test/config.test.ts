@@ -14,7 +14,8 @@ describe('loadConfig', () => {
     expect(c.usdcContract).toBe('CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA');
     expect(c.registryMode).toBe('onchain');
     expect(c.paymentsMode).toBe('real');
-    expect(c.stakeUsdc).toBe(10);
+    expect(c.stakeUsdc).toBe(5);
+    expect(c.minimaxModel).toBe('MiniMax-M2.7');
     expect([c.providersPort, c.auditorPort, c.webPort]).toEqual([4001, 4002, 3000]);
   });
 

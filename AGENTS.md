@@ -11,8 +11,8 @@ Hackathon build (HackMeridian, deadline **12:00 2026-10-26**): a Stellar-testnet
 
 These interfaces are shared by the contract, providers, auditor, agent and web app. Extend them by adding beside them, and keep existing signatures and behaviour intact.
 
-- **The deployed registry is fixed.** `CAHJN3HANWQVJUPQO43PXLCCK4ZAA2Y2EOJYTI7WJAO4WYWFB34GSH2D` holds real stakes and has no unstake, so a redeploy strands that USDC. Treat the contract ABI (`register`, `stake`, `slash`, `pause_listing`, `is_active`, `get`, `list`, the `Listing` struct, the `auditor` role) as frozen. A contract change needs the team's agreement first.
-- **Registry access goes through `@tb/registry-client`**: `createRegistryClient()` → `list/get/isActive/register/stake/slash/pauseListing`, with amounts as `bigint` USDC atomic units (7 decimals). `REGISTRY_MODE=onchain|offchain` swaps the backend; both follow the contract's rules and error names (`AlreadyRegistered`, `NotRegistered`, `NonPositiveAmount`).
+- **The registry ABI is shared by every app.** The deployed registry is `CCW4UFJ7MSNSWOQWZWG3XOF2IVVWVRINK3YCEROH6PDO4LW5ZPA6ELUA` (`REGISTRY_CONTRACT_ID` in `.env`). Change the ABI (`register`, `stake`, `slash`, `pause_listing`, `unregister`, `is_active`, `get`, `list`, the `Listing` struct, the `auditor` role) only with the team's agreement. A redeploy needs `scripts/deploy-registry.sh`, a restart of `pnpm dev`, and then `pnpm demo:reset`; stakes come back first via `unregister`.
+- **Registry access goes through `@tb/registry-client`**: `createRegistryClient()` → `list/get/isActive/register/stake/slash/pauseListing/unregister`, with amounts as `bigint` USDC atomic units (7 decimals). `REGISTRY_MODE=onchain|offchain` swaps the backend; both follow the contract's rules and error names (`AlreadyRegistered`, `NotRegistered`, `NonPositiveAmount`).
 - **Payments go through x402**: `paywall()` (`apps/providers/src/paywall.ts`) on the server and `createPayingFetch()` (`@tb/x402-client`) on the client. Browser buyers also need the providers' CORS headers. `PAYMENTS_MODE=simulated` is the documented fallback, and the README must say when it is used.
 - **Audit verdicts keep their shape and safety rules**: the `Verdict` type in `apps/auditor/src/scoring.ts`. Slashing needs at least `MIN_SCORED` scored probes; errors are retried and excluded; a claimed model or schema with no reference is *unverifiable* and never slashed. Only the auditor key slashes, and always `slash` then `pauseListing`.
 - **Category by prefix**: a `claimedModel` starting with `api:` is an API listing (`api:<schema>@<version>`); everything else is an LLM. The demo listings come from `seedListings()` in `@tb/config` and must stay as they are (Provider A, Provider B, CheapMax).
@@ -32,7 +32,7 @@ These interfaces are shared by the contract, providers, auditor, agent and web a
 - OpenZeppelin Pausable already defines a `Paused` event (ours is `ListingPaused`).
 - The x402 browser client resends the paid request with an `Access-Control-Expose-Headers` request header; any paywalled server must allow it in CORS preflight.
 - A settled x402 payment takes about 10 s; set timeouts with that in mind.
-- After a slash, `pnpm demo:reset` re-funds a fresh CheapMax identity from the treasury. Restart `pnpm dev` afterwards.
+- `pnpm demo:reset` (with `pnpm dev` running) unregisters every listing (stakes refunded), seeds Provider A, and audits it once.
 - `AUDIT_INTERVAL_MS=0` keeps the auditor timer off, because every audit round spends the auditor's USDC.
 
 ## Commands
