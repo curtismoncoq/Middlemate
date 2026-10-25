@@ -19,7 +19,7 @@ const AXIS: Record<string, number[]> = { mm: [1, 0, 0], ll: [0, 1, 0], qq: [0, 0
 const embed = async (texts: string[]) => texts.map((t) => AXIS[t.slice(0, 2)] ?? [0.3, 0.3, 0.3]);
 const references = async () => ({ 'MiniMax-M2.7': 'mm ref', 'llama3.2:3b': 'll ref', 'qwen2.5:0.5b': 'qq ref' });
 
-function setup(listings: Listing[], answer: (url: string) => string | Error) {
+function setup(listings: Listing[], answer: (url: string) => string | Error, referenceModels?: string[]) {
   const registry = {
     list: vi.fn(async () => listings),
     slash: vi.fn(async () => ({ hash: 'slashtx', amountAtomic: 50000000n })),
@@ -37,7 +37,7 @@ function setup(listings: Listing[], answer: (url: string) => string | Error) {
     return r;
   });
   const store = memoryStore();
-  const runner = createRunner({ registry, auditorSecret: 'SAUD', pay, references, embed, store, pickProbes: () => probes });
+  const runner = createRunner({ registry, auditorSecret: 'SAUD', pay, references, embed, store, pickProbes: () => probes, referenceModels });
   return { runner, registry, pay, store };
 }
 
@@ -84,5 +84,12 @@ describe('runAudit', () => {
     await runner.runAudit('GA');
     await runner.runAudit('GCHEAT');
     expect(store.all().map((r) => r.provider)).toEqual(['GCHEAT', 'GA']);
+  });
+
+  it('never slashes a listing claiming a model with no reference', async () => {
+    const { runner, registry } = setup([listing({ provider: 'GU', name: 'my_endpoint', claimedModel: 'Claude Opus 5.5' })], () => 'll answer', ['MiniMax-M2.7', 'llama3.2:3b', 'qwen2.5:0.5b']);
+    const [rec] = await runner.runAudit();
+    expect(rec.verdict.unverifiable).toBe(true);
+    expect(registry.slash).not.toHaveBeenCalled();
   });
 });

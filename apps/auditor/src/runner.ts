@@ -32,6 +32,8 @@ type Deps = {
   embed: (texts: string[]) => Promise<number[][]>;
   store: AuditStore;
   pickProbes?: () => Probe[];
+  /** models the references cover; listings claiming anything else are unverifiable */
+  referenceModels?: string[];
   log?: (line: string) => void;
 };
 
@@ -81,9 +83,9 @@ export function createRunner(deps: Deps) {
       probes.push(r);
       log(`[audit] ${l.name}: ${p.id} → ${r.status === 'error' ? 'error ' + r.error : r.kind === 'checkable' ? (r.correct ? 'correct' : 'wrong') : `closest ${r.closest.model} (${r.closest.similarity.toFixed(3)})`}`);
     }
-    const verdict = computeVerdict(l.claimedModel, probes);
+    const verdict = computeVerdict(l.claimedModel, probes, deps.referenceModels);
     const rec: AuditRecord = { id: `${Date.now()}-${l.provider.slice(0, 6)}`, at: new Date().toISOString(), provider: l.provider, name: l.name, claimedModel: l.claimedModel, verdict, probes };
-    log(`[audit] ${l.name}: score ${verdict.score} matched ${verdict.matchedModel} → ${verdict.pass ? 'PASS' : 'FAIL'}`);
+    log(`[audit] ${l.name}: score ${verdict.score} matched ${verdict.matchedModel} → ${verdict.unverifiable ? 'UNVERIFIABLE (no reference for ' + l.claimedModel + ')' : verdict.pass ? 'PASS' : 'FAIL'}`);
     if (!verdict.pass) {
       const s = await deps.registry.slash(deps.auditorSecret, l.provider);
       rec.slashTx = s.hash;

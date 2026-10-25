@@ -7,7 +7,7 @@ const cfg = loadConfig();
 const registry = createRegistryClient(cfg);
 export const AUDITOR_URL = process.env.AUDITOR_URL ?? `http://localhost:${cfg.auditorPort}`;
 
-type RawAudit = AuditSummary & { provider: string; verdict?: { score: number; matchedModel: string; confidence: number; pass: boolean; inconclusive: boolean }; probes?: unknown[] };
+type RawAudit = AuditSummary & { provider: string; verdict?: { score: number; matchedModel: string; confidence: number; pass: boolean; inconclusive: boolean; unverifiable?: boolean }; probes?: unknown[] };
 
 export async function fetchAudits(): Promise<RawAudit[]> {
   try {
@@ -20,7 +20,7 @@ export async function fetchAudits(): Promise<RawAudit[]> {
 
 const summarize = (a: RawAudit): AuditSummary => ({
   at: a.at, score: a.verdict!.score, matchedModel: a.verdict!.matchedModel, confidence: a.verdict!.confidence,
-  pass: a.verdict!.pass, inconclusive: a.verdict!.inconclusive, slashTx: a.slashTx, slashedAtomic: a.slashedAtomic, pauseTx: a.pauseTx,
+  pass: a.verdict!.pass, inconclusive: a.verdict!.inconclusive, unverifiable: a.verdict!.unverifiable, slashTx: a.slashTx, slashedAtomic: a.slashedAtomic, pauseTx: a.pauseTx,
 });
 
 export async function listingsWithAudits(): Promise<ApiListing[]> {

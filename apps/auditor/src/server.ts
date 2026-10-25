@@ -29,6 +29,7 @@ const runner = createRunner({
   auditorSecret: cfg.keys.auditor.secret,
   pay: createPayingFetch(cfg.keys.auditor.secret),
   references: createReferences(REFERENCE_MODELS(cfg)),
+  referenceModels: Object.keys(REFERENCE_MODELS(cfg)),
   embed: ollamaEmbed(cfg.ollamaUrl),
   store,
   log: (l) => console.log(l),

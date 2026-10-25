@@ -32,6 +32,14 @@ describe('ListingCard', () => {
   });
 });
 
+describe('ListingCard unverifiable', () => {
+  it('shows an unverifiable badge instead of a trust score', () => {
+    render(<ListingCard listing={{ ...base, name: 'my_endpoint', claimedModel: 'Claude Opus 5.5', lastAudit: { at: '2026-10-25T15:03:00Z', score: 30, matchedModel: 'llama3.2:3b', confidence: 1, pass: true, inconclusive: true, unverifiable: true } }} now={Date.now()} />);
+    expect(screen.getByText(/Unverifiable model/)).toBeTruthy();
+    expect(screen.queryByText(/Trust 30/)).toBeNull();
+  });
+});
+
 describe('Catalog states', () => {
   it('shows an error state when the registry is unavailable', () => {
     render(<Catalog state={{ status: 'error', message: 'rpc down' }} now={Date.now()} />);

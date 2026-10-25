@@ -37,7 +37,13 @@ export function ListingCard({ listing: l, now, onTry }: Props) {
     <article className="card" aria-label={l.name}>
       <header className="card__head">
         <h3>{l.name}</h3>
-        {a ? <span className={`badge ${a.pass ? 'badge--green' : 'badge--amber'}`}>Trust {a.score}</span> : <span className="badge">Not audited yet</span>}
+        {!a ? (
+          <span className="badge">Not audited yet</span>
+        ) : a.unverifiable ? (
+          <span className="badge badge--amber" title="No reference model to compare against">Unverifiable model</span>
+        ) : (
+          <span className={`badge ${a.pass ? 'badge--green' : 'badge--amber'}`}>Trust {a.score}</span>
+        )}
       </header>
       <p className="card__claim">
         Serves <code>{l.claimedModel}</code>

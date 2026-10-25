@@ -5,6 +5,7 @@ export type AuditSummary = {
   confidence: number;
   pass: boolean;
   inconclusive?: boolean;
+  unverifiable?: boolean;
   slashTx?: string;
   slashedAtomic?: string;
   pauseTx?: string;

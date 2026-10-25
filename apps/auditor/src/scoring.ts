@@ -12,6 +12,8 @@ export type Verdict = {
   scored: number;
   pass: boolean;
   inconclusive: boolean;
+  /** claimed model has no reference we can query, so the fingerprint can't verify it */
+  unverifiable?: boolean;
 };
 
 export const TRUST_THRESHOLD = Number(process.env.TRUST_THRESHOLD ?? 60);
@@ -42,9 +44,10 @@ export function closestReference(answerEmb: number[], refs: Record<string, numbe
 /**
  * Score = 70% share of fingerprint probes closest to the claimed model
  *       + 30% share of checkable probes answered correctly.
- * Errors are excluded; fewer than MIN_SCORED scored probes is inconclusive and never fails.
+ * Errors are excluded; fewer than MIN_SCORED scored probes, or a claimed model with no
+ * reference to compare against, is inconclusive and never fails.
  */
-export function computeVerdict(claimedModel: string, results: ProbeResult[]): Verdict {
+export function computeVerdict(claimedModel: string, results: ProbeResult[], referenceModels?: string[]): Verdict {
   const ok = results.filter((r) => r.status === 'ok');
   const fps = ok.filter((r) => r.kind === 'fingerprint') as Extract<ProbeResult, { kind: 'fingerprint'; status: 'ok' }>[];
   const checks = ok.filter((r) => r.kind === 'checkable') as Extract<ProbeResult, { kind: 'checkable'; status: 'ok' }>[];
@@ -57,7 +60,8 @@ export function computeVerdict(claimedModel: string, results: ProbeResult[]): Ve
   const checkRate = checks.length ? checks.filter((c) => c.correct).length / checks.length : 1;
   const score = Math.round(100 * (FINGERPRINT_WEIGHT * fpRate + (1 - FINGERPRINT_WEIGHT) * checkRate));
   const scored = ok.length;
-  const inconclusive = scored < MIN_SCORED;
+  const unverifiable = !!referenceModels && !referenceModels.includes(claimedModel);
+  const inconclusive = scored < MIN_SCORED || unverifiable;
 
   return {
     score,
@@ -65,6 +69,7 @@ export function computeVerdict(claimedModel: string, results: ProbeResult[]): Ve
     confidence: fps.length ? topVotes / fps.length : 0,
     scored,
     inconclusive,
+    ...(unverifiable ? { unverifiable } : {}),
     pass: inconclusive || score >= TRUST_THRESHOLD,
   };
 }
