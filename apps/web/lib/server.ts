@@ -8,7 +8,7 @@ const registry = createRegistryClient(cfg);
 export const MODELS = verifiableModels(cfg.minimaxModel);
 export const AUDITOR_URL = process.env.AUDITOR_URL ?? `http://localhost:${cfg.auditorPort}`;
 
-type RawAudit = AuditSummary & { provider: string; name: string; verdict?: { score: number; matchedModel: string; confidence: number; pass: boolean; inconclusive: boolean; unverifiable?: boolean }; probes?: unknown[] };
+type RawAudit = AuditSummary & { listingId?: string; provider: string; name: string; verdict?: { score: number; matchedModel: string; confidence: number; pass: boolean; inconclusive: boolean; unverifiable?: boolean }; probes?: unknown[] };
 
 export async function fetchAudits(): Promise<RawAudit[]> {
   try {
@@ -27,7 +27,7 @@ const summarize = (a: RawAudit): AuditSummary => ({
 export async function listingsWithAudits(): Promise<ApiListing[]> {
   const [listings, audits] = await Promise.all([registry.list(), fetchAudits()]);
   return listings.map((l) => {
-    const last = audits.find((a) => a.provider === l.provider); // audits are newest first
+    const last = audits.find((a) => l.id ? a.listingId === l.id : !a.listingId && a.provider === l.provider); // audits are newest first
     return { ...l, priceAtomic: String(l.priceAtomic), stakeAtomic: String(l.stakeAtomic), verifiable: isVerifiable(l.claimedModel, MODELS), lastAudit: last ? summarize(last) : undefined };
   });
 }

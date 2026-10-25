@@ -5,7 +5,7 @@
 
 use soroban_sdk::{
     contract, contracterror, contractevent, contractimpl, contracttype, symbol_short, token, Address, Env, String,
-    Symbol, Vec,
+    Symbol, Vec, BytesN,
 };
 use stellar_access::access_control::{self as access_control, AccessControl};
 use stellar_contract_utils::pausable::{self as pausable, Pausable};
@@ -25,6 +25,13 @@ pub enum Error {
     NonPositiveAmount = 3,
     /// Unauthorized
     Unauthorized = 4,
+    CooldownPending = 5,
+    Retired = 6,
+    ExitNotRequested = 7,
+    ExitPending = 8,
+    InvalidCooldown = 9,
+    ExitExpired = 10,
+    InvalidMetadata = 11,
 }
 
 #[contracttype]
@@ -46,6 +53,9 @@ enum Key {
     Treasury,
     Providers,
     Listing(Address),
+    EndpointIds,
+    Endpoint(BytesN<32>),
+    ExitCooldown,
 }
 
 #[contractevent]
@@ -225,3 +235,4 @@ impl Pausable for Registry {
 }
 
 mod test;
+mod endpoints;

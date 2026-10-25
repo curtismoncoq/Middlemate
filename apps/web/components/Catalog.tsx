@@ -8,6 +8,7 @@ export type CatalogFilter = 'all' | 'api' | 'inference';
 /** Active listings plus recently slashed ones (kept on screen for SLASHED_VISIBLE_MS). */
 export function visibleListings(listings: ApiListing[], now: number) {
   return listings.filter((l) => {
+    if (l.retired) return false;
     if (l.active && BigInt(l.stakeAtomic) > 0n) return true;
     const a = l.lastAudit;
     return !!a?.slashTx && now - Date.parse(a.at) < SLASHED_VISIBLE_MS;
@@ -22,7 +23,7 @@ export function Catalog({ state, now, onTry, audit, filter = 'all', onFilterChan
     const visible = visibleListings(state.listings, now);
     const shown = visible.filter((l) => filter === 'all' || (filter === 'api' ? l.claimedModel.startsWith('api:') : !l.claimedModel.startsWith('api:')));
     content = shown.length === 0 ? <p className="empty">{visible.length === 0 ? 'No listings yet.' : `No ${filter === 'api' ? 'API' : 'inference'} listings yet.`}</p> : (
-      <section className="grid">{shown.map((l) => <ListingCard key={l.provider} listing={l} now={now} onTry={onTry} auditing={audit?.current?.provider === l.provider ? audit.current : undefined} />)}</section>
+      <section className="grid">{shown.map((l) => <ListingCard key={l.id ?? l.provider} listing={l} now={now} onTry={onTry} auditing={audit?.current && (audit.current.listingId ?? audit.current.provider) === (l.id ?? l.provider) ? audit.current : undefined} />)}</section>
     );
   }
   return (

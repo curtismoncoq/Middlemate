@@ -13,6 +13,9 @@ export type AuditSummary = {
 
 /** Listing as sent over JSON (bigints as strings) with its latest audit. */
 export type ApiListing = {
+  id?: string;
+  exitAt?: number;
+  retired?: boolean;
   provider: string;
   name: string;
   endpoint: string;
@@ -27,7 +30,7 @@ export type ApiListing = {
 
 export type AuditStatus = {
   running: boolean;
-  current: { provider: string; name: string; probe: number; total: number } | null;
+  current: { listingId?: string; provider: string; name: string; probe: number; total: number } | null;
   feed: { at: string; provider: string; name: string; line: string }[];
 };
 export const IDLE_AUDIT: AuditStatus = { running: false, current: null, feed: [] };

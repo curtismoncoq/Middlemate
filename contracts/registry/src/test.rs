@@ -3,9 +3,9 @@ extern crate std;
 
 use super::*;
 use soroban_sdk::{
-    testutils::Address as _,
+    testutils::{Address as _, Ledger as _},
     token::{StellarAssetClient, TokenClient},
-    Address, Env, String,
+    Address, BytesN, Env, String,
 };
 
 const TEN: i128 = 10_0000000;
@@ -47,6 +47,79 @@ fn register(s: &Setup, p: &Address, name: &str) {
         &String::from_str(e, "MiniMax-M2.7"),
         &120000,
     );
+}
+
+fn endpoint(s: &Setup, p: &Address, n: u8, name: &str) -> BytesN<32> {
+    let id = BytesN::from_array(&s.env, &[n; 32]);
+    s.reg.register_endpoint(p, &id, &String::from_str(&s.env, name), &String::from_str(&s.env, "https://weather.example/forecast"), &String::from_str(&s.env, "api:weather@1"), &10000, &TEN);
+    id
+}
+
+#[test]
+fn wallet_owns_multiple_independently_staked_endpoints() {
+    let s = setup();
+    let p = funded_provider(&s);
+    let a = endpoint(&s, &p, 1, "Weather by Mat");
+    let b = endpoint(&s, &p, 2, "Mat rain API");
+    assert_eq!(s.reg.list_endpoints().len(), 2);
+    assert_eq!(s.reg.get_endpoint(&a).unwrap().name, String::from_str(&s.env, "Weather by Mat"));
+    s.reg.slash_endpoint(&s.auditor, &a);
+    s.reg.pause_endpoint(&s.auditor, &a);
+    assert!(!s.reg.is_endpoint_active(&a));
+    assert!(s.reg.is_endpoint_active(&b));
+    assert_eq!(s.reg.get_endpoint(&b).unwrap().stake, TEN);
+}
+
+#[test]
+fn endpoint_exit_waits_ten_seconds_and_refunds_only_its_owner() {
+    let s = setup();
+    let p = funded_provider(&s);
+    s.env.ledger().set_timestamp(100);
+    let id = endpoint(&s, &p, 3, "Exit");
+    assert_eq!(s.reg.request_exit(&p, &id), 110);
+    assert!(s.reg.is_endpoint_active(&id));
+    assert_eq!(s.reg.try_withdraw_endpoint(&p, &id), Err(Ok(Error::CooldownPending)));
+    s.env.ledger().set_timestamp(110);
+    assert!(!s.reg.is_endpoint_active(&id));
+    assert_eq!(s.reg.withdraw_endpoint(&p, &id), TEN);
+    assert_eq!(s.token.balance(&p), 3 * TEN);
+    assert!(s.reg.get_endpoint(&id).unwrap().retired);
+    assert_eq!(s.reg.try_withdraw_endpoint(&p, &id), Err(Ok(Error::Retired)));
+}
+
+#[test]
+fn endpoint_owner_checks_and_slashing_during_exit() {
+    let s = setup();
+    let p = funded_provider(&s);
+    let stranger = funded_provider(&s);
+    let id = endpoint(&s, &p, 4, "Protected");
+    assert_eq!(s.reg.try_request_exit(&stranger, &id), Err(Ok(Error::Unauthorized)));
+    assert_eq!(s.reg.try_stake_endpoint(&stranger, &id, &TEN), Err(Ok(Error::Unauthorized)));
+    assert_eq!(s.reg.try_rename_endpoint(&stranger, &id, &String::from_str(&s.env, "Stolen")), Err(Ok(Error::Unauthorized)));
+    s.reg.rename_endpoint(&p, &id, &String::from_str(&s.env, "Renamed"));
+    assert_eq!(s.reg.get_endpoint(&id).unwrap().name, String::from_str(&s.env, "Renamed"));
+    s.reg.request_exit(&p, &id);
+    assert!(s.reg.try_slash_endpoint(&stranger, &id).is_err());
+    assert!(s.reg.try_pause_endpoint(&stranger, &id).is_err());
+    assert_eq!(s.reg.slash_endpoint(&s.auditor, &id), TEN);
+    s.env.ledger().set_timestamp(10);
+    assert_eq!(s.reg.try_withdraw_endpoint(&stranger, &id), Err(Ok(Error::Unauthorized)));
+    assert_eq!(s.reg.withdraw_endpoint(&p, &id), 0);
+    assert_eq!(s.token.balance(&s.treasury), TEN);
+}
+
+#[test]
+fn exit_config_and_cancel_do_not_undo_audit_pause() {
+    let s = setup();
+    let p = funded_provider(&s);
+    let id = endpoint(&s, &p, 5, "Cancel");
+    s.reg.set_exit_cooldown(&s.admin, &60);
+    assert_eq!(s.reg.exit_cooldown(), 60);
+    assert_eq!(s.reg.request_exit(&p, &id), 60);
+    s.reg.pause_endpoint(&s.auditor, &id);
+    s.reg.cancel_exit(&p, &id);
+    assert!(!s.reg.is_endpoint_active(&id));
+    assert_eq!(s.reg.get_endpoint(&id).unwrap().exit_at, 0);
 }
 
 #[test]

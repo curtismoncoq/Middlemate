@@ -4,6 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@10.33.1",
   "scripts": {
+    "deploy:listings": "tsx scripts/deploy-listing-registry.ts",
     "test": "vitest run",
     "check-env": "tsx scripts/check-env.ts",
     "typecheck": "tsc -p tsconfig.json",

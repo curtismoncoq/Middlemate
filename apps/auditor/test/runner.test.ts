@@ -22,6 +22,8 @@ const references = async () => ({ 'MiniMax-M2.7': 'mm ref', 'llama3.2:3b': 'll r
 function setup(listings: Listing[], answer: (url: string) => string | Error, referenceModels?: string[]) {
   const registry = {
     list: vi.fn(async () => listings),
+    slashEndpoint: vi.fn(async (_s: string, _id: string) => ({ hash: 'endpointslash', amountAtomic: 50000000n })),
+    pauseEndpoint: vi.fn(async (_s: string, id: string) => { const l = listings.find((item) => item.id === id); if (l) l.active = false; return { hash: 'endpointpause' }; }),
     slash: vi.fn(async () => ({ hash: 'slashtx', amountAtomic: 50000000n })),
     pauseListing: vi.fn(async (_s: string, p: string) => {
       const l = listings.find((x) => x.provider === p);
@@ -42,6 +44,14 @@ function setup(listings: Listing[], answer: (url: string) => string | Error, ref
 }
 
 describe('runAudit', () => {
+  it('slashes only the requested listing ID when a wallet owns several endpoints', async () => {
+    const { runner, registry } = setup([listing({ id: 'bad' }), listing({ id: 'other', name: 'Other API' })], () => 'qq answer');
+    const [rec] = await runner.runAudit('bad');
+    expect(rec.listingId).toBe('bad');
+    expect(registry.slashEndpoint).toHaveBeenCalledWith('SAUD', 'bad');
+    expect(registry.pauseEndpoint).toHaveBeenCalledWith('SAUD', 'bad');
+    expect(registry.slash).not.toHaveBeenCalled();
+  });
   it('slashes and pauses a cheater whose answers match qwen', async () => {
     const { runner, registry } = setup([listing({})], () => 'qq answer');
     const [rec] = await runner.runAudit();

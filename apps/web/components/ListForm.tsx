@@ -8,7 +8,6 @@ import { txUrl } from '../lib/types.ts';
 import { capabilitiesUrl, validateWeatherCapabilities, WEATHER_FIELDS, WEATHER_SCHEMA_ID } from '@tb/weather-contract';
 
 type Step = { label: string; hash?: string };
-const localWeatherDemo = process.env.NEXT_PUBLIC_WEATHER_DEMO === '1';
 const weatherResponseFields = WEATHER_FIELDS.filter((f) => f.group === 'response');
 
 async function api(body: unknown) {
@@ -73,8 +72,8 @@ export function ListForm({ models }: { models: ModelOption[] }) {
         setSteps((s) => [...s.slice(0, -1), { label, hash }]);
       };
       const { stakeAtomic, ...listing } = v.value;
-      await run('Registered', { method: 'register', args: listing });
-      await run(`Staked ${form.stakeUsdc} USDC`, { method: 'stake', args: { amountAtomic: stakeAtomic } });
+      const id = Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('');
+      await run(`Registered & staked ${form.stakeUsdc} USDC`, { method: 'registerEndpoint', args: { ...listing, id, amountAtomic: stakeAtomic } });
       setTimeout(() => router.push('/'), 1500);
     } catch (err) {
       setFail((err as Error).message);
@@ -136,8 +135,8 @@ export function ListForm({ models }: { models: ModelOption[] }) {
         {field('priceUsd', 'Price per request (USD)', '0.005')}
         {field('stakeUsdc', 'Stake (USDC)', '5')}
       </div>
-      <button className="btn" disabled={busy}>{busy ? 'Signing…' : w.address ? 'Register & stake' : 'Connect wallet to list'}</button>
-      <p className="muted">{localWeatherDemo ? 'The weather endpoint is a local fixture. Registration and stake are submitted to the Stellar Testnet registry and require wallet approval.' : 'Stake is locked in the registry while you are listed. It is refunded when the listing is unregistered, unless it was slashed.'}</p>
+      <button className="btn" disabled={busy || w.restoring}>{w.restoring ? 'Reconnecting…' : busy ? 'Signing…' : w.address ? 'Register & stake' : 'Connect wallet to list'}</button>
+      <p className="muted">You can register multiple endpoints with the same wallet. Each has its own name and stake. Registration and stake are confirmed together in your wallet on Stellar Testnet. Use Dashboard to request removal and withdraw after the onchain cooldown.</p>
       {steps.map((s, i) => (
         <p key={i} className="muted">
           {s.hash ? '✔' : '…'} {s.label} {s.hash && <a href={txUrl(s.hash)} target="_blank" rel="noreferrer">tx {s.hash.slice(0, 6)}…</a>}

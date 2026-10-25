@@ -1,9 +1,10 @@
-import type { Listing, RegistryClient } from '@tb/registry-client';
+import { listingKey, type Listing, type RegistryClient, type EndpointRegistryMethods } from '@tb/registry-client';
 import type { PayingFetch } from '@tb/x402-client';
 import { pickProbes as defaultPickProbes, type Probe } from './probes.ts';
 import { closestReference, computeVerdict, type ProbeResult, type Verdict } from './scoring.ts';
 
 export type AuditRecord = {
+  listingId?: string;
   id: string;
   at: string;
   provider: string;
@@ -22,10 +23,10 @@ export type AuditRecord = {
 
 export const PAY_TIMEOUT_MS = 45_000;
 
-export type FeedLine = { at: string; provider: string; name: string; line: string };
+export type FeedLine = { listingId?: string; at: string; provider: string; name: string; line: string };
 export type AuditStatus = {
   running: boolean;
-  current: { provider: string; name: string; probe: number; total: number } | null;
+  current: { listingId?: string; provider: string; name: string; probe: number; total: number } | null;
   /** most recent probe/verdict/slash lines, oldest first */
   feed: FeedLine[];
 };
@@ -47,7 +48,7 @@ export function memoryStore(initial: AuditRecord[] = []): AuditStore {
 }
 
 type Deps = {
-  registry: Pick<RegistryClient, 'list' | 'slash' | 'pauseListing'>;
+  registry: Pick<RegistryClient, 'list' | 'slash' | 'pauseListing'> & Partial<EndpointRegistryMethods>;
   auditorSecret: string;
   pay: PayingFetch;
   /** model id → reference answer for a prompt */
@@ -65,7 +66,7 @@ export function createRunner(deps: Deps) {
   let current: AuditStatus['current'] = null;
   const feed: FeedLine[] = [];
   const say = (l: Listing, line: string) => {
-    feed.push({ at: new Date().toISOString(), provider: l.provider, name: l.name, line });
+    feed.push({ at: new Date().toISOString(), listingId: l.id, provider: l.provider, name: l.name, line });
     if (feed.length > FEED_MAX) feed.shift();
     deps.log?.(`[audit] ${l.name}: ${line}`);
   };
@@ -115,7 +116,7 @@ export function createRunner(deps: Deps) {
 
   async function auditOne(l: Listing): Promise<AuditRecord> {
     const round = pick();
-    current = { provider: l.provider, name: l.name, probe: 0, total: round.length };
+    current = { listingId: l.id, provider: l.provider, name: l.name, probe: 0, total: round.length };
     say(l, `probing (${l.claimedModel})`);
     const probes: ProbeResult[] = [];
     for (const p of round) {
@@ -126,15 +127,16 @@ export function createRunner(deps: Deps) {
     }
     const verdict = computeVerdict(l.claimedModel, probes, deps.referenceModels);
     const spent = BigInt(probes.filter((p) => p.status === 'ok' && p.txHash).length) * l.priceAtomic;
-    const rec: AuditRecord = { id: `${Date.now()}-${l.provider.slice(0, 6)}`, at: new Date().toISOString(), provider: l.provider, name: l.name, claimedModel: l.claimedModel, verdict, probes, spentAtomic: String(spent) };
+    const rec: AuditRecord = { id: `${Date.now()}-${listingKey(l).slice(0, 8)}`, listingId: l.id, at: new Date().toISOString(), provider: l.provider, name: l.name, claimedModel: l.claimedModel, verdict, probes, spentAtomic: String(spent) };
     say(l, `score ${verdict.score} matched ${verdict.matchedModel} → ${verdict.unverifiable ? 'UNVERIFIABLE (no reference for ' + l.claimedModel + ')' : verdict.pass ? 'PASS' : 'FAIL'}`);
     if (!verdict.pass) {
       try {
-        const s = await deps.registry.slash(deps.auditorSecret, l.provider);
+        if (l.id && (!deps.registry.slashEndpoint || !deps.registry.pauseEndpoint)) throw new Error('Registry does not support per-listing audits');
+        const s = l.id ? await deps.registry.slashEndpoint!(deps.auditorSecret, l.id) : await deps.registry.slash(deps.auditorSecret, l.provider);
         rec.slashTx = s.hash;
         rec.slashedAtomic = String(s.amountAtomic);
         say(l, `slashed ${Number(s.amountAtomic) / 1e7} USDC · tx ${s.hash}`);
-        rec.pauseTx = (await deps.registry.pauseListing(deps.auditorSecret, l.provider)).hash;
+        rec.pauseTx = (l.id ? await deps.registry.pauseEndpoint!(deps.auditorSecret, l.id) : await deps.registry.pauseListing(deps.auditorSecret, l.provider)).hash;
         say(l, `delisted · tx ${rec.pauseTx}`);
       } catch (e) {
         rec.error = (e as Error).message;
@@ -153,7 +155,7 @@ export function createRunner(deps: Deps) {
   async function runAudit(provider?: string): Promise<AuditRecord[]> {
     if (running) return running;
     running = (async () => {
-      const targets = bySuspicion((await deps.registry.list()).filter((l) => l.active && l.stakeAtomic > 0n && (!provider || l.provider === provider)));
+      const targets = bySuspicion((await deps.registry.list()).filter((l) => l.active && l.stakeAtomic > 0n && (!provider || listingKey(l) === provider || l.provider === provider)));
       const out: AuditRecord[] = [];
       for (const l of targets) {
         if (deps.referenceModels && !deps.referenceModels.includes(l.claimedModel)) {
