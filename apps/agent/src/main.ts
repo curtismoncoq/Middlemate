@@ -17,6 +17,8 @@ type AgentDeps = {
   guard?: BudgetGuard;
   /** only buy models the auditor can verify (unset = no filter) */
   verifiable?: Set<string>;
+  /** only buy listings that passed an audit (unset = no filter) */
+  isTrusted?: (provider: string) => boolean;
   /** number of summaries requested in one job (overspend demo asks for many) */
   jobs?: number;
 };
@@ -38,6 +40,11 @@ export async function runAgent(d: AgentDeps): Promise<AgentResult> {
     d.log(`[agent] picked ${pick.name} at ${usd(pick.priceAtomic)}/request (cheapest ${d.model})`);
     if (!(await d.registry.isActive(pick.provider))) {
       d.log(`[agent] ${pick.name} was delisted → rerouting`);
+      exclude.add(pick.provider);
+      continue;
+    }
+    if (d.isTrusted && !d.isTrusted(pick.provider)) {
+      d.log(`[agent] ${pick.name} not audited yet (under review) → skipping`);
       exclude.add(pick.provider);
       continue;
     }
@@ -94,7 +101,18 @@ async function cli() {
   const guard = new BudgetGuard(budgetAtomic, process.argv.includes('--reset-budget') ? 0n : readSpent());
   const jobs = process.argv.includes('--try-overspend') ? 100 : 1;
 
-  await runAgent({ registry: createRegistryClient(cfg), pay: createPayingFetch(cfg.keys.agent.secret), log: console.log, model, article, budgetAtomic, guard, jobs,
+  // Trust = the latest audit of a listing passed (and wasn't inconclusive). Auditor down → no filter, with a warning.
+  let isTrusted: ((p: string) => boolean) | undefined;
+  try {
+    const audits = (await (await fetch(`http://localhost:${cfg.auditorPort}/audits`, { signal: AbortSignal.timeout(3000) })).json()) as { provider: string; verdict: { pass: boolean; inconclusive: boolean } }[];
+    const latest = new Map<string, boolean>();
+    for (const a of audits) if (!latest.has(a.provider)) latest.set(a.provider, a.verdict.pass && !a.verdict.inconclusive);
+    isTrusted = (p) => latest.get(p) === true;
+  } catch {
+    console.log('[agent] auditor unreachable — buying without the audit check');
+  }
+
+  await runAgent({ registry: createRegistryClient(cfg), isTrusted, pay: createPayingFetch(cfg.keys.agent.secret), log: console.log, model, article, budgetAtomic, guard, jobs,
     verifiable: process.argv.includes('--allow-unverifiable') ? undefined : new Set(verifiableModels(cfg.minimaxModel).map((m) => m.id)) });
 
   mkdirSync(path.dirname(SPEND_FILE), { recursive: true });

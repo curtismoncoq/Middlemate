@@ -48,6 +48,14 @@ describe('ListingCard unverifiable before any audit', () => {
   });
 });
 
+describe('ListingCard under review', () => {
+  it('shows Under review and disables Try it for a verifiable listing with no audit yet', () => {
+    render(<ListingCard listing={{ ...base, verifiable: true }} now={Date.now()} />);
+    expect(screen.getByText(/Under review/)).toBeTruthy();
+    expect((screen.getByRole('button', { name: /Try it/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
 describe('Catalog states', () => {
   it('shows an error state when the registry is unavailable', () => {
     render(<Catalog state={{ status: 'error', message: 'rpc down' }} now={Date.now()} />);

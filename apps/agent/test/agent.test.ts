@@ -96,4 +96,11 @@ describe('runAgent', () => {
     expect(opts.maxAmountAtomic).toBe(200000n);
     expect(init.signal).toBeDefined();
   });
+
+  it('only buys from listings that passed an audit when a trust check is given', async () => {
+    const d = deps([A, C]);
+    const r = await runAgent({ ...d, model: 'MiniMax-M2.7', article: 'text', budgetAtomic: 5000000n, isTrusted: (p) => p === 'GA' });
+    expect(r.paidTo).toBe('Provider A');
+    expect(d.lines.join('\n')).toMatch(/CheapMax.*not audited yet/s);
+  });
 });

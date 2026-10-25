@@ -5,6 +5,7 @@ import { loadConfig, REPO_ROOT } from '@tb/config';
 import { createRegistryClient } from '@tb/registry-client';
 import { createPayingFetch } from '@tb/x402-client';
 import { createRunner, memoryStore, type AuditRecord, type AuditStore } from './runner.ts';
+import { awaitingReview } from './review.ts';
 import { createReferences, ollamaEmbed, REFERENCE_MODELS } from './references.ts';
 
 const cfg = loadConfig();
@@ -72,3 +73,22 @@ app.post('/audit/run', async (req, res) => {
 
 app.listen(cfg.auditorPort, () => console.log(`[auditor] listening on :${cfg.auditorPort} (payments: ${cfg.paymentsMode}, interval ${INTERVAL || 'off'})`));
 if (INTERVAL > 0) setInterval(() => runner.runAudit().catch((e) => console.error('[auditor] run failed', e)), INTERVAL);
+
+// Audit on entry: a new (never audited) listing is reviewed within a few seconds of registering.
+const ENTRY_POLL_MS = Number(process.env.ENTRY_POLL_MS ?? 5000);
+const refModels = Object.keys(REFERENCE_MODELS(cfg));
+const registry = createRegistryClient(cfg);
+if (ENTRY_POLL_MS > 0) {
+  setInterval(async () => {
+    if (runner.status().running) return;
+    try {
+      const [next] = awaitingReview(await registry.list(), store.all(), refModels);
+      if (next) {
+        console.log(`[auditor] entry audit: ${next.name} (${next.claimedModel})`);
+        await runner.runAudit(next.provider);
+      }
+    } catch (e) {
+      console.error('[auditor] entry check failed', (e as Error).message);
+    }
+  }, ENTRY_POLL_MS);
+}

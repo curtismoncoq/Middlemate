@@ -5,6 +5,7 @@ type Props = { listing: ApiListing; now: number; onTry?: (l: ApiListing) => void
 export function ListingCard({ listing: l, now, onTry, auditing }: Props) {
   const a = l.lastAudit;
   const slashed = !!a && !a.pass && !!a.slashTx;
+  const underReview = !a && l.verifiable !== false && l.active;
 
   if (slashed) {
     return (
@@ -45,7 +46,7 @@ export function ListingCard({ listing: l, now, onTry, auditing }: Props) {
         {l.verifiable === false || a?.unverifiable ? (
           <span className="badge badge--amber" title="No reference model to compare against">⚠ Unverifiable model</span>
         ) : !a ? (
-          <span className="badge">Not audited yet</span>
+          <span className="badge badge--amber">Under review</span>
         ) : a.unverifiable ? (
           <span className="badge badge--amber" title="No reference model to compare against">Unverifiable model</span>
         ) : (
@@ -63,7 +64,8 @@ export function ListingCard({ listing: l, now, onTry, auditing }: Props) {
         <span>🔒 Staked {usdc(l.stakeAtomic)} USDC</span>
         {a && <span>audited {ago(a.at, now)}</span>}
       </footer>
-      <button className="btn" onClick={() => onTry?.(l)} disabled={!l.active}>
+      {underReview && <p className="card__warn">Being checked by the auditor before anyone can buy.</p>}
+      <button className="btn" onClick={() => onTry?.(l)} disabled={!l.active || underReview}>
         Try it
       </button>
     </article>
