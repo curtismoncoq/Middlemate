@@ -65,6 +65,7 @@ Rules:
 | `review` (no audit yet) | UNDER REVIEW (amber) | amber |
 | `auditing` | PROBE 3/6 (amber) + pulsing lamp | amber |
 | `unverifiable` | NOT VERIFIED (amber) | grey |
+| `unscored` (audit answered too few probes) | NOT SCORED (amber), never a trust number | amber |
 | `api` | SCHEMA DECLARED (grey) | lime |
 | `slashed` | shutter rolls down, red tape `SLASHED · STAKE 5 → 0`, price struck through | — |
 

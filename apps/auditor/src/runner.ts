@@ -128,7 +128,9 @@ export function createRunner(deps: Deps) {
     const verdict = computeVerdict(l.claimedModel, probes, deps.referenceModels);
     const spent = BigInt(probes.filter((p) => p.status === 'ok' && p.txHash).length) * l.priceAtomic;
     const rec: AuditRecord = { id: `${Date.now()}-${listingKey(l).slice(0, 8)}`, listingId: l.id, at: new Date().toISOString(), provider: l.provider, name: l.name, claimedModel: l.claimedModel, verdict, probes, spentAtomic: String(spent) };
-    say(l, `score ${verdict.score} matched ${verdict.matchedModel} → ${verdict.unverifiable ? 'UNVERIFIABLE (no reference for ' + l.claimedModel + ')' : verdict.pass ? 'PASS' : 'FAIL'}`);
+    say(l, verdict.unverifiable ? `UNVERIFIABLE (no reference for ${l.claimedModel})`
+      : verdict.inconclusive ? `NOT SCORED (${verdict.scored} of ${probes.length} probes answered)`
+      : `score ${verdict.score} matched ${verdict.matchedModel} → ${verdict.pass ? 'PASS' : 'FAIL'}`);
     if (!verdict.pass) {
       try {
         if (l.id && (!deps.registry.slashEndpoint || !deps.registry.pauseEndpoint)) throw new Error('Registry does not support per-listing audits');

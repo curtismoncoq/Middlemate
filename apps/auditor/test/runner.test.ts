@@ -44,6 +44,13 @@ function setup(listings: Listing[], answer: (url: string) => string | Error, ref
 }
 
 describe('runAudit', () => {
+  it('logs an audit with too few answered probes as NOT SCORED, never PASS', async () => {
+    const { runner } = setup([listing({})], () => new Error('provider asks for 120000 > cap 50000'));
+    await runner.runAudit();
+    const last = runner.status().feed.at(-1)!.line;
+    expect(last).toMatch(/NOT SCORED \(0 of \d+ probes answered\)/);
+    expect(last).not.toMatch(/PASS/);
+  });
   it('slashes only the requested listing ID when a wallet owns several endpoints', async () => {
     const { runner, registry } = setup([listing({ id: 'bad' }), listing({ id: 'other', name: 'Other API' })], () => 'qq answer');
     const [rec] = await runner.runAudit('bad');

@@ -1,12 +1,13 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWallet } from './WalletContext.tsx';
 import { signTransaction } from '../lib/wallet.ts';
 import { draftListing, validateListing, type ListingInput } from '../lib/listForm.ts';
 import { SLASH_LINE } from './ListingCard.tsx';
 import { Stall } from './Stall.tsx';
-import { txUrl } from '../lib/types.ts';
+import { price, txUrl } from '../lib/types.ts';
+import { readEndpointPrice } from '../lib/endpointPrice.ts';
 import { capabilitiesUrl, validateWeatherCapabilities, WEATHER_FIELDS, WEATHER_SCHEMA_ID } from '@tb/weather-contract';
 
 type Step = { label: string; hash?: string };
@@ -21,11 +22,15 @@ async function api(body: unknown) {
 
 export type ModelOption = { id: string; label: string };
 const OTHER = '__other__';
+type Quote = { status: 'idle' } | { status: 'reading' } | { status: 'ok'; url: string; amountAtomic: string; payTo: string } | { status: 'error'; message: string };
+const isHttpUrl = (s: string) => { try { return /^https?:$/.test(new URL(s).protocol); } catch { return false; } };
+const short = (g: string) => `${g.slice(0, 4)}…${g.slice(-4)}`;
 
-export function ListForm({ models }: { models: ModelOption[] }) {
+/** `payment`: the network and token listings must charge in (USDC on Stellar testnet). */
+export function ListForm({ models, payment }: { models: ModelOption[]; payment: { network: string; asset: string } }) {
   const w = useWallet();
   const router = useRouter();
-  const [form, setForm] = useState<ListingInput>({ name: '', endpoint: '', claimedModel: models[0]?.id ?? '', priceUsd: '0.005', stakeUsdc: '5' });
+  const [form, setForm] = useState<ListingInput>({ name: '', endpoint: '', claimedModel: models[0]?.id ?? '', priceUsd: '', stakeUsdc: '5' });
   const [choice, setChoice] = useState(models[0]?.id ?? OTHER);
   const [errors, setErrors] = useState<Partial<Record<keyof ListingInput, string>>>({});
   const [steps, setSteps] = useState<Step[]>([]);
@@ -33,6 +38,23 @@ export function ListForm({ models }: { models: ModelOption[] }) {
   const [busy, setBusy] = useState(false);
   const [category, setCategory] = useState<'inference' | 'weather'>('inference');
   const [supportedFields, setSupportedFields] = useState<string[]>(['forecast.temperatureC']);
+  const [quote, setQuote] = useState<Quote>({ status: 'idle' });
+
+  // The listing's price is whatever the endpoint charges: read it from its unpaid 402 answer.
+  useEffect(() => {
+    const url = form.endpoint.trim();
+    setForm((f) => ({ ...f, priceUsd: '' }));
+    if (!isHttpUrl(url)) return setQuote({ status: 'idle' });
+    setQuote({ status: 'reading' });
+    let current = true;
+    const t = setTimeout(() => {
+      readEndpointPrice(url, payment).then(
+        (p) => { if (!current) return; setQuote({ status: 'ok', url, ...p }); setForm((f) => ({ ...f, priceUsd: String(Number(p.amountAtomic) / 1e7) })); },
+        (e: Error) => current && setQuote({ status: 'error', message: e.message }),
+      );
+    }, 400);
+    return () => { current = false; clearTimeout(t); };
+  }, [form.endpoint, payment.network, payment.asset]);
 
   const field = (k: Exclude<keyof ListingInput, 'allowUnverifiable'>, label: string, placeholder: string, help?: string) => (
     <div className="field">
@@ -54,6 +76,7 @@ export function ListForm({ models }: { models: ModelOption[] }) {
     if (!v.ok) return setErrors(v.errors);
     setErrors({});
     if (!w.address) return setFail('Connect your wallet first.');
+    if (quote.status !== 'ok' || quote.url !== form.endpoint.trim()) return setFail('Wait for the price to be read from your endpoint.');
     setBusy(true);
     setFail(null);
     setSteps([]);
@@ -74,7 +97,7 @@ export function ListForm({ models }: { models: ModelOption[] }) {
         const { hash } = await api({ action: 'submit', xdr: signed });
         setSteps((s) => [...s.slice(0, -1), { label, hash }]);
       };
-      const { stakeAtomic, ...listing } = v.value;
+      const { stakeAtomic, ...listing } = { ...v.value, priceAtomic: quote.amountAtomic };
       const id = Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('');
       await run(`Registered & staked ${form.stakeUsdc} USDC`, { method: 'registerEndpoint', args: { ...listing, id, amountAtomic: stakeAtomic } });
       setTimeout(() => router.push('/'), 1500);
@@ -143,11 +166,24 @@ export function ListForm({ models }: { models: ModelOption[] }) {
         <pre className="capability-json">{JSON.stringify({ schema: WEATHER_SCHEMA_ID, availableFields: supportedFields }, null, 2)}</pre>
       </fieldset>}
       <div className="listform__row">
-        {field('priceUsd', 'Price per request (USD)', '0.005')}
+        <div className="field">
+          <span className="field__label">Price per request</span>
+          <div className="price-read" aria-live="polite">
+            {quote.status === 'ok' ? (
+              <><b className="num">{price(quote.amountAtomic)}</b><span>read from your endpoint · paid to {short(quote.payTo)}</span></>
+            ) : quote.status === 'reading' ? (
+              <span>Reading the price from your endpoint…</span>
+            ) : quote.status === 'error' ? (
+              <small className="field__error">{quote.message}</small>
+            ) : (
+              <span>Paste your endpoint URL; its price is read from it.</span>
+            )}
+          </div>
+        </div>
         {field('stakeUsdc', 'Stake (USDC)', '5')}
       </div>
       <div className="listform__submit">
-        <button className="btn btn--lime" disabled={busy || w.restoring}>{w.restoring ? 'Reconnecting…' : busy ? 'Signing…' : w.address ? 'Register & stake' : 'Connect wallet to list'}</button>
+        <button className="btn btn--lime" disabled={busy || w.restoring || quote.status !== 'ok'}>{w.restoring ? 'Reconnecting…' : busy ? 'Signing…' : w.address ? 'Register & stake' : 'Connect wallet to list'}</button>
         <p className="muted">One wallet signature registers the listing and locks its stake. One wallet can list several endpoints; remove one from Dashboard, then withdraw after the onchain grace period.</p>
       </div>
       {fail && <p className="field__error" role="alert">{fail}</p>}

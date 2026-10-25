@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { awaitingReview } from '../src/review.ts';
+import { awaitingReview, ENTRY_RETRIES } from '../src/review.ts';
 import type { Listing } from '@tb/registry-client';
 
 const L = (provider: string, claimedModel = 'llama3.2:3b', over: Partial<Listing> = {}): Listing => ({
@@ -19,5 +19,17 @@ describe('awaitingReview', () => {
   it('ignores unstaked, delisted and unverifiable listings', () => {
     const got = awaitingReview([L('G0', 'llama3.2:3b', { stakeAtomic: 0n }), L('GP', 'llama3.2:3b', { active: false }), L('GU', 'Claude Opus 5.5')], [], REFS);
     expect(got).toEqual([]);
+  });
+
+  const now = Date.parse('2026-10-25T21:00:00Z');
+  const rec = (secondsAgo: number, inconclusive: boolean, unverifiable = false) => ({ provider: 'GN', listingId: 'n', at: new Date(now - secondsAgo * 1000).toISOString(), verdict: { inconclusive, unverifiable } });
+  const N = L('GN', 'llama3.2:3b', { id: 'n' });
+  it('retries a listing whose last audit scored too few probes, a minute later', () => {
+    expect(awaitingReview([N], [rec(30, true)], REFS, now)).toEqual([]);
+    expect(awaitingReview([N], [rec(90, true)], REFS, now)).toEqual([N]);
+  });
+  it('stops retrying after ENTRY_RETRIES inconclusive audits, and never retries a scored one', () => {
+    expect(awaitingReview([N], Array.from({ length: ENTRY_RETRIES }, (_, i) => rec(90 + i, true)), REFS, now)).toEqual([]);
+    expect(awaitingReview([N], [rec(90, false)], REFS, now)).toEqual([]);
   });
 });
