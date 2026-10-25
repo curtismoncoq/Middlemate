@@ -70,6 +70,9 @@ export function createRunner(deps: Deps) {
   }
 
   async function runProbe(l: Listing, p: Probe): Promise<ProbeResult> {
+    // Reference answers don't depend on the provider: fetch them while the paid probe settles.
+    const refsPromise = p.kind === 'fingerprint' ? deps.references(p.prompt) : null;
+    refsPromise?.catch(() => {}); // handled below; avoid an unhandled rejection if the probe itself fails
     let got: { answer: string; txHash?: string } | undefined;
     let lastErr = '';
     for (let attempt = 0; attempt < 2 && !got; attempt++) {
@@ -82,7 +85,7 @@ export function createRunner(deps: Deps) {
     if (!got) return { probeId: p.id, kind: p.kind, status: 'error', error: lastErr, prompt: p.prompt };
     if (p.kind === 'checkable') return { probeId: p.id, kind: 'checkable', status: 'ok', answer: got.answer, correct: p.check(got.answer), prompt: p.prompt, txHash: got.txHash };
     try {
-      const refs = await deps.references(p.prompt);
+      const refs = await refsPromise!;
       const models = Object.keys(refs);
       const [answerEmb, ...refEmbs] = await deps.embed([got.answer, ...models.map((m) => refs[m])]);
       const closest = closestReference(answerEmb, Object.fromEntries(models.map((m, i) => [m, refEmbs[i]])));
