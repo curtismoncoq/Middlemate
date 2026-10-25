@@ -1,0 +1,6 @@
+.superpowers/
+node_modules/
+.env
+.env.*
+target/
+.next/
