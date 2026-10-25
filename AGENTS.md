@@ -6,6 +6,7 @@ Hackathon build (HackMeridian, deadline **12:00 2026-10-26**): a Stellar-testnet
 - **Plan and ledger** for the LLM marketplace: `docs/superpowers/plans/2026-10-25-trustbazaar.md` and `.superpowers/sdd/2026-10-25-trustbazaar/progress.md` (task status plus every `Ruling:`). New work gets its own spec, plan and ledger; leave these ones as the record.
 - **Adding a non-LLM API category** (weather, prices…): read `docs/api-listings.md` before writing code.
 - **Recording the demo:** `docs/demo-runbook.md`.
+- **Changing anything visual** in `apps/web`: follow `docs/design.md` (colours, type, radius 0, the stall drawing).
 
 ## Contracts you must keep
 

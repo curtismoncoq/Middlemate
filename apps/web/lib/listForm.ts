@@ -1,3 +1,4 @@
+import type { ApiListing } from './types.ts';
 export type ListingInput = { name: string; endpoint: string; claimedModel: string; priceUsd: string; stakeUsdc: string; allowUnverifiable?: boolean };
 export type ValidListing = { name: string; endpoint: string; claimedModel: string; priceAtomic: string; stakeAtomic: string };
 export type Validation = { ok: true; value: ValidListing } | { ok: false; errors: Partial<Record<keyof ListingInput, string>> };
@@ -24,4 +25,16 @@ export function validateListing(i: ListingInput, verifiableIds: string[]): Valid
   if (!(stake >= 1)) errors.stakeUsdc = 'Stake at least 1 USDC';
   if (Object.keys(errors).length) return { ok: false, errors };
   return { ok: true, value: { name: i.name.trim(), endpoint: i.endpoint.trim(), claimedModel: i.claimedModel.trim(), priceAtomic: atomic(price), stakeAtomic: atomic(stake) } };
+}
+
+/** The listing as the catalog will show it once registered (under review until its entry audit). */
+export function draftListing(i: ListingInput, verifiable: boolean): ApiListing {
+  const amount = (s: string) => {
+    const n = Number(s);
+    return n > 0 ? atomic(n) : '0';
+  };
+  return {
+    provider: 'draft', name: i.name.trim() || 'Your listing', endpoint: i.endpoint.trim(), claimedModel: i.claimedModel.trim(),
+    priceAtomic: amount(i.priceUsd), stakeAtomic: amount(i.stakeUsdc), active: true, verifiable,
+  };
 }

@@ -3,29 +3,28 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ConnectWallet } from './ConnectWallet.tsx';
 
-const LINKS = [
-  { href: '/', label: 'Catalog' },
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/list', label: 'List an endpoint' },
-  { href: '/audits', label: 'Audit log' },
+const TILES = [
+  { href: '/', label: 'Catalog', short: 'Catalog', tone: 'white' },
+  { href: '/list', label: 'List an endpoint', short: 'List', tone: 'lime' },
+  { href: '/audits', label: 'Audit log', short: 'Audits', tone: 'grey' },
+  { href: '/dashboard', label: 'Dashboard', short: 'Dashboard', tone: 'dark' },
 ];
 
+/** Navigation as a column of colour tiles beside the stage (a row of tiles on a phone). */
 export function Nav() {
   const path = usePathname();
   return (
-    <nav className="nav">
-      <Link href="/" className="nav__brand">
-        <span className="nav__mark">◆</span> TrustBazaar
-        <span className="nav__net">testnet</span>
-      </Link>
-      <div className="nav__links">
-        {LINKS.map((l) => (
-          <Link key={l.href} href={l.href} className={path === l.href ? 'is-active' : ''}>
-            {l.label}
-          </Link>
-        ))}
+    <nav className="tiles" aria-label="Main">
+      {TILES.map((t) => (
+        <Link key={t.href} href={t.href} className={`tile tile--${t.tone} ${path === t.href ? 'is-active' : ''}`} aria-current={path === t.href ? 'page' : undefined}>
+          <span className="tile__long">{t.label}</span>
+          <span className="tile__short">{t.short}</span>
+        </Link>
+      ))}
+      <div className="tile tile--ink tile--wallet">
+        <span className="tile__long">Wallet</span>
+        <ConnectWallet />
       </div>
-      <ConnectWallet />
     </nav>
   );
 }

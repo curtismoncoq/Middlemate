@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
-import { Space_Grotesk, JetBrains_Mono } from 'next/font/google';
+import { Barlow, Barlow_Condensed, Geist_Mono } from 'next/font/google';
 import { Nav } from '../components/Nav.tsx';
 import { WalletProvider } from '../components/WalletContext.tsx';
 import './globals.css';
 
-const sans = Space_Grotesk({ subsets: ['latin'], variable: '--font-sans' });
-const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
+const sans = Barlow({ subsets: ['latin'], weight: ['400', '500', '600'], variable: '--font-sans' });
+const display = Barlow_Condensed({ subsets: ['latin'], weight: ['600', '700'], variable: '--font-display' });
+const mono = Geist_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-mono' });
 
 export const metadata: Metadata = {
   title: 'TrustBazaar',
@@ -14,11 +15,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+    <html lang="en" className={`${sans.variable} ${display.variable} ${mono.variable}`}>
       <body>
         <WalletProvider>
-          <Nav />
-          <main className="wrap">{children}</main>
+          <div className="frame">
+            <Nav />
+            <main className="stage-col">{children}</main>
+          </div>
         </WalletProvider>
       </body>
     </html>

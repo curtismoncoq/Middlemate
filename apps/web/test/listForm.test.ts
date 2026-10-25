@@ -30,3 +30,17 @@ describe('validateListing', () => {
     expect(validateListing({ ...good, claimedModel: 'Claude Opus 5.5', allowUnverifiable: true }, MODELS).ok).toBe(true);
   });
 });
+
+describe('draftListing', () => {
+  it('turns the form into the listing the catalog will show, under review until audited', async () => {
+    const { draftListing } = await import('../lib/listForm.ts');
+    expect(draftListing(good, true)).toEqual({
+      provider: 'draft', name: 'My Llama', endpoint: good.endpoint, claimedModel: 'llama3.2:3b',
+      priceAtomic: '50000', stakeAtomic: '50000000', active: true, verifiable: true,
+    });
+  });
+  it('fills a placeholder name and zero amounts while the form is incomplete', async () => {
+    const { draftListing } = await import('../lib/listForm.ts');
+    expect(draftListing({ ...good, name: ' ', priceUsd: 'abc', stakeUsdc: '' }, false)).toMatchObject({ name: 'Your listing', priceAtomic: '0', stakeAtomic: '0', verifiable: false });
+  });
+});
