@@ -1,0 +1,17 @@
+{
+  "name": "@tb/x402-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@tb/config": "workspace:*",
+    "@x402/core": "2.28.0",
+    "@x402/fetch": "2.28.0",
+    "@x402/stellar": "2.28.0",
+    "@stellar/stellar-sdk": "16.4.1"
+  }
+}
