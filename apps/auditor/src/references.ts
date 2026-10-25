@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { minimaxBackend, ollamaBackend, type Backend } from '@tb/providers/backends';
 import { EMBED_MODEL, OLLAMA_KEEP_ALIVE, verifiableModels, type Config } from '@tb/config';
 
@@ -9,9 +10,28 @@ export const REFERENCE_MODELS = (cfg: Config): Record<string, Backend> =>
       m.id,
       m.reference.kind === 'minimax'
         ? minimaxBackend(cfg.minimaxBaseUrl, cfg.minimaxApiKey ?? '', cfg.minimaxModel)
-        : ollamaBackend(cfg.ollamaUrl, m.reference.model),
+        : m.reference.kind === 'recorded'
+          ? recordedBackend(loadRecording(m.reference.file).answers)
+          : ollamaBackend(cfg.ollamaUrl, m.reference.model),
     ]),
   );
+
+const RECORDINGS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../references');
+
+/** Answers to the fingerprint probes, recorded once from a model we can't query live (`pnpm record:claude`). */
+export type Recording = { model: string; recordedAt: string; how: string; answers: Record<string, string> };
+
+export const loadRecording = (file: string): Recording => JSON.parse(readFileSync(path.join(RECORDINGS_DIR, file), 'utf8'));
+
+/** A reference backend that replays a recording; an unrecorded prompt errors, so its probe is excluded. */
+export function recordedBackend(answers: Record<string, string>): Backend {
+  return async (messages) => {
+    const prompt = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+    const a = answers[prompt];
+    if (a === undefined) throw new Error('no recorded answer for this prompt');
+    return a;
+  };
+}
 
 /**
  * Reference answers per prompt from every model we can query. Calls to hosted references cost money,

@@ -8,7 +8,8 @@ import { seedListings } from './listings.ts';
 export type VerifiableModel = {
   id: string;
   label: string;
-  reference: { kind: 'minimax' } | { kind: 'ollama'; model: string };
+  /** `recorded`: answers to the fingerprint probes recorded once into apps/auditor/references/<file> (no live API) */
+  reference: { kind: 'minimax' } | { kind: 'ollama'; model: string } | { kind: 'recorded'; file: string };
 };
 
 export function verifiableModels(minimaxModel: string): VerifiableModel[] {
@@ -16,6 +17,7 @@ export function verifiableModels(minimaxModel: string): VerifiableModel[] {
     { id: minimaxModel, label: minimaxModel.replace(/-/g, ' '), reference: { kind: 'minimax' } },
     { id: 'llama3.2:3b', label: 'Llama 3.2 3B', reference: { kind: 'ollama', model: 'llama3.2:3b' } },
     { id: 'qwen2.5:0.5b', label: 'Qwen 2.5 0.5B', reference: { kind: 'ollama', model: 'qwen2.5:0.5b' } },
+    { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', reference: { kind: 'recorded', file: 'claude-opus-5-5.json' } },
   ];
 }
 

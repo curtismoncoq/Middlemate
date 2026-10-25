@@ -12,7 +12,9 @@
     "agent": "cd apps/agent && tsx src/main.ts",
     "demo:reset": "tsx scripts/demo-reset.ts",
     "demo:weather": "scripts/weather-demo.sh",
-    "seed": "tsx scripts/seed-listings.ts"
+    "seed": "tsx scripts/seed-listings.ts",
+    "record:claude": "tsx scripts/record-claude-reference.ts",
+    "calibrate": "tsx scripts/calibrate-references.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
