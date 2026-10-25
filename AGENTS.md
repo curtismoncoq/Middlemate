@@ -1,26 +1,40 @@
 # TrustBazaar
 
-Hackathon build (HackMeridian, deadline **12:00 2026-10-26**): a Stellar-testnet marketplace for pay-per-request LLM endpoints. Providers stake in a Soroban registry; an auditor probes them over x402 and slashes liars.
+Hackathon build (HackMeridian, deadline **12:00 2026-10-26**): a Stellar-testnet marketplace for pay-per-request AI and API endpoints. Providers stake in a Soroban registry; an auditor probes them over x402 and slashes liars. The LLM marketplace is finished and demo-ready. Every change must leave it working.
 
-- **Spec** (the authority on what to build): `docs/superpowers/specs/2026-10-25-trustbazaar-design.md`
-- **Plan** (task order, interfaces, tests): `docs/superpowers/plans/2026-10-25-trustbazaar.md`
-- **Progress ledger** (which tasks are done, every ruling made): `.superpowers/sdd/2026-10-25-trustbazaar/progress.md`. Read it before resuming work, and append a `Ruling:` line whenever you deviate from the plan.
+- **Spec** (what was built and why): `docs/superpowers/specs/2026-10-25-trustbazaar-design.md`
+- **Plan and ledger** for the LLM marketplace: `docs/superpowers/plans/2026-10-25-trustbazaar.md` and `.superpowers/sdd/2026-10-25-trustbazaar/progress.md` (task status plus every `Ruling:`). New work gets its own spec, plan and ledger; leave these ones as the record.
+- **Adding a non-LLM API category** (weather, prices…): read `docs/api-listings.md` before writing code.
+- **Recording the demo:** `docs/demo-runbook.md`.
 
-## Boundaries
+## Contracts you must keep
 
-- Every app reads and writes the registry through `@tb/registry-client`. `REGISTRY_MODE=onchain|offchain` switches the implementation; both follow the contract's rules and error names (`AlreadyRegistered`, `NotRegistered`, `NonPositiveAmount`).
-- Every x402 payment goes through `paywall()` (`apps/providers/src/paywall.ts`) on the server side and `createPayingFetch()` (`@tb/x402-client`) on the client side. `PAYMENTS_MODE=simulated` is the documented fallback; the README must say when it is used.
-- Seed listing metadata (names, claimed versus served models, prices) has one source: `seedListings()` in `@tb/config`.
+These interfaces are shared by the contract, providers, auditor, agent and web app. Extend them by adding beside them, and keep existing signatures and behaviour intact.
+
+- **The deployed registry is fixed.** `CAHJN3HANWQVJUPQO43PXLCCK4ZAA2Y2EOJYTI7WJAO4WYWFB34GSH2D` holds real stakes and has no unstake, so a redeploy strands that USDC. Treat the contract ABI (`register`, `stake`, `slash`, `pause_listing`, `is_active`, `get`, `list`, the `Listing` struct, the `auditor` role) as frozen. A contract change needs the team's agreement first.
+- **Registry access goes through `@tb/registry-client`**: `createRegistryClient()` → `list/get/isActive/register/stake/slash/pauseListing`, with amounts as `bigint` USDC atomic units (7 decimals). `REGISTRY_MODE=onchain|offchain` swaps the backend; both follow the contract's rules and error names (`AlreadyRegistered`, `NotRegistered`, `NonPositiveAmount`).
+- **Payments go through x402**: `paywall()` (`apps/providers/src/paywall.ts`) on the server and `createPayingFetch()` (`@tb/x402-client`) on the client. Browser buyers also need the providers' CORS headers. `PAYMENTS_MODE=simulated` is the documented fallback, and the README must say when it is used.
+- **Audit verdicts keep their shape and safety rules**: the `Verdict` type in `apps/auditor/src/scoring.ts`. Slashing needs at least `MIN_SCORED` scored probes; errors are retried and excluded; a claimed model or schema with no reference is *unverifiable* and never slashed. Only the auditor key slashes, and always `slash` then `pauseListing`.
+- **Category by prefix**: a `claimedModel` starting with `api:` is an API listing (`api:<schema>@<version>`); everything else is an LLM. The demo listings come from `seedListings()` in `@tb/config` and must stay as they are (Provider A, Provider B, CheapMax).
+- **README honesty**: every limit of a new feature gets a line in the README's "Honest limits" section.
+
+## How to work here
+
+- Branch from `build` and merge back into `build`.
+- Test-first: write the test, watch it fail, then make it pass. `pnpm test` (vitest), `pnpm typecheck` and `cargo test -p registry` are all green before every commit.
+- Secrets stay in `.env`: read them through `loadConfig()`, and keep them out of output, logs and commits. Testnet identities are `tb-<role>` in the stellar CLI and `TB_<ROLE>_PUBLIC/SECRET` in `.env`.
 
 ## Gotchas
 
-- `FACILITATOR_URL=local` runs an in-process x402 facilitator that pays fees with the admin key. The hosted OpenZeppelin facilitator needs an API key, and using generated keys was blocked, so the user decides whether to switch to it.
-- MiniMax: `MiniMax-M2` is retired; use `MiniMax-M2.7`. Responses include `<think>…</think>` blocks, which must be stripped before showing or scoring them.
-- Version pins: soroban-sdk `=28.0.0` with OpenZeppelin Stellar crates `=0.8.0`, and `@x402/*` 2.28.0. Upgrading one without the others breaks the build.
-- OpenZeppelin Pausable already defines a `Paused` event, so contract events need different names (we use `ListingPaused`).
-- Testnet identities live in the stellar CLI as `tb-<role>` (`stellar keys ls`), and `.env` mirrors them as `TB_<ROLE>_PUBLIC/SECRET`. Secrets stay in `.env`: read them through `loadConfig()`, and keep them out of output and commits.
-- A settled x402 payment takes about 10 seconds. Allow for that in timeouts and in the demo pacing.
+- `FACILITATOR_URL=local` runs an in-process x402 facilitator that pays fees with the admin key. The hosted OpenZeppelin facilitator needs an API key, which the user would have to provide.
+- MiniMax: `MiniMax-M2` is retired; use `MiniMax-M2.7`. Its output contains `<think>…</think>` blocks; `stripThinking()` removes them.
+- Version pins: soroban-sdk `=28.0.0` with OpenZeppelin Stellar crates `=0.8.0`, and `@x402/*` 2.28.0. They upgrade together or not at all.
+- OpenZeppelin Pausable already defines a `Paused` event (ours is `ListingPaused`).
+- The x402 browser client resends the paid request with an `Access-Control-Expose-Headers` request header; any paywalled server must allow it in CORS preflight.
+- A settled x402 payment takes about 10 s; set timeouts with that in mind.
+- After a slash, `pnpm demo:reset` re-funds a fresh CheapMax identity from the treasury. Restart `pnpm dev` afterwards.
+- `AUDIT_INTERVAL_MS=0` keeps the auditor timer off, because every audit round spends the auditor's USDC.
 
 ## Commands
 
-`pnpm test` (vitest), `pnpm typecheck`, `cargo test -p registry`, `scripts/deploy-registry.sh`, `pnpm tsx scripts/seed-listings.ts`, `pnpm tsx scripts/check-env.ts`.
+`pnpm dev`, `pnpm test`, `pnpm typecheck`, `cargo test -p registry`, `pnpm agent`, `pnpm seed`, `pnpm demo:reset`, `pnpm check-env`, `scripts/deploy-registry.sh`.
