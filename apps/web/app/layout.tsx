@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import { Nav } from '../components/Nav.tsx';
+import { WalletProvider } from '../components/WalletContext.tsx';
 import './globals.css';
 
 const sans = Space_Grotesk({ subsets: ['latin'], variable: '--font-sans' });
@@ -15,8 +16,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
       <body>
-        <Nav />
-        <main className="wrap">{children}</main>
+        <WalletProvider>
+          <Nav />
+          <main className="wrap">{children}</main>
+        </WalletProvider>
       </body>
     </html>
   );

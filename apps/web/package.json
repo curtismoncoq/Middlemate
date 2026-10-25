@@ -14,7 +14,12 @@
     "next": "^15.5.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "@creit.tech/stellar-wallets-kit": "2.7.1",
+    "@x402/core": "2.28.0",
+    "@x402/fetch": "2.28.0",
+    "@x402/stellar": "2.28.0",
+    "@stellar/stellar-sdk": "16.4.1"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.0",

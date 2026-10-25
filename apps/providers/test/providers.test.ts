@@ -37,6 +37,20 @@ describe('providers', () => {
   });
 });
 
+describe('CORS for browser buyers', () => {
+  it('answers preflight allowing the x402 payment headers', async () => {
+    const r = await request(app()).options('/llama-b/v1/chat/completions').set('Origin', 'http://localhost:3000').set('Access-Control-Request-Method', 'POST');
+    expect(r.status).toBe(204);
+    expect(r.headers['access-control-allow-origin']).toBe('*');
+    expect(r.headers['access-control-allow-headers']).toMatch(/payment-signature/i);
+  });
+
+  it('exposes the settlement header to the browser', async () => {
+    const r = await request(app()).post('/llama-b/v1/chat/completions').set('X-Simulated-Payment', 'GBUYER').send(chat);
+    expect(r.headers['access-control-expose-headers']).toMatch(/payment-response/i);
+  });
+});
+
 describe('stripThinking', () => {
   it('removes <think> blocks and trims', () => {
     expect(stripThinking('<think>We need answer OK.</think>\n\nOK')).toBe('OK');

@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Catalog } from '../components/Catalog.tsx';
+import { TryItPanel } from '../components/TryItPanel.tsx';
+import { useWallet } from '../components/WalletContext.tsx';
 import type { ApiListing, CatalogState } from '../lib/types.ts';
 
 const POLL_MS = 3000;
@@ -10,6 +12,7 @@ export default function CatalogPage() {
   const [now, setNow] = useState(() => Date.now());
   const [auditing, setAuditing] = useState(false);
   const [trying, setTrying] = useState<ApiListing | null>(null);
+  const wallet = useWallet();
 
   useEffect(() => {
     let alive = true;
@@ -56,7 +59,7 @@ export default function CatalogPage() {
         </button>
       </section>
       <Catalog state={state} now={now} onTry={setTrying} />
-      {trying && <p className="empty">Try-it for {trying.name} arrives with wallet connect.</p>}
+      {trying && <TryItPanel key={trying.provider} listing={trying} pay={wallet.pay} onClose={() => setTrying(null)} />}
     </>
   );
 }
