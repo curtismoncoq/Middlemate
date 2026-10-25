@@ -1,9 +1,10 @@
 'use client';
 import { useState } from 'react';
 import { price, txUrl, type ApiListing } from '../lib/types.ts';
+import { CallActions } from './Community.tsx';
 
 export type BrowserPay = (url: string, init: RequestInit) => Promise<Response & { payment?: { txHash: string } }>;
-type Msg = { role: 'user' | 'assistant'; content: string; txHash?: string };
+type Msg = { role: 'user' | 'assistant'; content: string; txHash?: string; callId?: string; receiptError?: string; receiptProof?: string };
 export type TryItProps = { listing: ApiListing; pay: BrowserPay | null; onClose: () => void };
 type Props = TryItProps;
 
@@ -20,14 +21,14 @@ export function TryItPanel({ listing, pay, onClose }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const res = await pay(listing.endpoint, {
+      const res = await pay(listing.communityEnabled ? `/api/invoke/${listing.id ?? listing.provider}` : listing.endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ messages: history.map(({ role, content }) => ({ role, content })) }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const j = (await res.json()) as { choices: { message: { content: string } }[] };
-      setMsgs([...history, { role: 'assistant', content: j.choices[0].message.content, txHash: res.payment?.txHash }]);
+      setMsgs([...history, { role: 'assistant', content: j.choices[0].message.content, txHash: res.payment?.txHash, callId: res.headers.get('x-tb-call-id') ?? undefined, receiptError: res.headers.get('x-tb-receipt-error') ?? undefined, receiptProof: res.headers.get('x-tb-receipt-proof') ?? undefined }]);
       setDraft('');
     } catch (e) {
       setError(`Payment failed: ${(e as Error).message}`);
@@ -52,6 +53,7 @@ export function TryItPanel({ listing, pay, onClose }: Props) {
             {m.txHash && m.txHash !== 'simulated' && (
               <a href={txUrl(m.txHash)} target="_blank" rel="noreferrer">paid {cost} · tx {m.txHash.slice(0, 6)}…</a>
             )}
+            {(m.callId || m.receiptError) && <CallActions callId={m.callId} receiptError={m.receiptError} proof={m.receiptProof} />}
           </div>
         ))}
         {busy && <div className="bubble bubble--assistant muted">Waiting for your wallet signature and settlement…</div>}

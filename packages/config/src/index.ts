@@ -26,6 +26,11 @@ export type Config = {
   providersPort: number;
   auditorPort: number;
   webPort: number;
+  supabaseUrl?: string;
+  supabaseSecretKey?: string;
+  communityNamespace: string;
+  moderatorWallets: string[];
+  moderationResponseSeconds: number;
 };
 
 // TB_REPO_ROOT lets bundlers (Next.js) that relocate this file still find the repo.
@@ -80,6 +85,11 @@ export function loadConfig(env: Record<string, string | undefined> = defaultEnv(
     providersPort: Number(env.PROVIDERS_PORT ?? 4001),
     auditorPort: Number(env.AUDITOR_PORT ?? 4002),
     webPort: Number(env.WEB_PORT ?? 3000),
+    supabaseUrl: env.SUPABASE_URL || undefined,
+    supabaseSecretKey: env.SUPABASE_SECRET_KEY || undefined,
+    communityNamespace: env.COMMUNITY_NAMESPACE ?? `stellar-testnet:${env.LISTING_REGISTRY_CONTRACT_ID ?? env.REGISTRY_CONTRACT_ID ?? 'development'}`,
+    moderatorWallets: (env.MODERATOR_WALLETS || [env.TB_ADMIN_PUBLIC, env.TB_AUDITOR_PUBLIC].filter(Boolean).join(',')).split(',').map((wallet) => wallet.trim()).filter(Boolean),
+    moderationResponseSeconds: Number(env.MODERATION_RESPONSE_SECONDS ?? 86400),
   };
 }
 

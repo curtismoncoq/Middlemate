@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { capabilitiesUrl, validateWeatherCapabilities, WEATHER_FIELDS, WEATHER_SCHEMA_ID } from '@tb/weather-contract';
 import type { ApiListing } from '../lib/types.ts';
 
-type State = { status: 'idle' | 'loading' } | { status: 'ok'; fields: Set<string> } | { status: 'error'; message: string };
+type State = { status: 'idle' | 'loading' } | { status: 'ok'; fields: Set<string>; extras: string[] } | { status: 'error'; message: string };
 
 export function WeatherFieldMatrix({ listing }: { listing: ApiListing }) {
   const [state, setState] = useState<State>({ status: 'idle' });
@@ -18,7 +18,7 @@ export function WeatherFieldMatrix({ listing }: { listing: ApiListing }) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return validateWeatherCapabilities(await response.json());
       })
-      .then((manifest) => setState({ status: 'ok', fields: new Set(manifest.availableFields) }))
+      .then((manifest) => setState({ status: 'ok', fields: new Set(manifest.availableFields), extras: manifest.extraFields ?? [] }))
       .catch((error: unknown) => {
         if (!controller.signal.aborted) setState({ status: 'error', message: (error as Error).message });
       });
@@ -52,7 +52,8 @@ export function WeatherFieldMatrix({ listing }: { listing: ApiListing }) {
               })}
             </ul>
           )}
-          <p className="muted">These are provider-declared capabilities. Audit results show whether checked fields were verified.</p>
+          {state.status === 'ok' && state.extras.length > 0 && <><h4>Additional provider fields</h4><ul className="weather-fields weather-fields--extras">{state.extras.map((name) => <li key={name}><span className="field-mark field-mark--input" aria-hidden="true">+</span><code>{name}</code><small>No MET Norway reference</small><b>Unverified</b></li>)}</ul></>}
+          <p className="muted">Canonical fields are checked against <a href="https://api.met.no/weatherapi/locationforecast/2.0/" target="_blank" rel="noreferrer">MET Norway</a>. Additional fields are displayed but never scored or slashed.</p>
         </div>
       )}
     </section>

@@ -17,17 +17,17 @@ claimedModel = "api:<schema-name>@<version>"      e.g. "api:weather@1"
 
 ### Weather v1 contract and capability declaration
 
-The first supported API contract is `api:weather@1`, published as an OpenAPI 3.1 document at `/api/schemas/weather/v1`. It defines a JSON `POST /weather/v1/forecast` request with latitude, longitude, and forecast horizon, and a normalized metric response. The `packages/weather-contract` package contains the canonical schema and stable field catalog for the web app and agent.
+The first supported API contract is `api:weather@1`, published as an OpenAPI 3.1 document at `/api/schemas/weather/v1`. It defines a JSON `POST /weather/v1/forecast` request with latitude, longitude, and forecast horizon, and a normalized metric response. Its canonical response fields map to MET Norway Locationforecast 2.0 values. Provider-specific values may be declared separately in `extraFields` and returned under `extras`; buyers can see them, but the auditor excludes them from comparison and sanctions.
 
-Request inputs are listed separately from response capabilities. Latitude and longitude are required inputs; they are not marked “not provided” when a provider does not echo resolved coordinates. Providers choose from the response field catalog and publish a public JSON manifest at the sibling `/weather/v1/capabilities` path:
+Request inputs are listed separately from response capabilities. Latitude and longitude are required inputs. Providers choose canonical response fields from the MET Norway field catalog and publish a public JSON manifest at the sibling `/weather/v1/capabilities` path:
 
 ```json
-{"schema":"api:weather@1","availableFields":["forecast.temperatureC","forecast.validAt"]}
+{"schema":"api:weather@1","availableFields":["forecast.temperatureC","forecast.validAt"],"extraFields":["pollenRisk"]}
 ```
 
-The listing form checks that this manifest matches the provider's field selection before registering. The catalog labels those fields as provider-declared; it must not present declarations as independently verified until the weather audit verifies them. The paid forecast route reuses x402; the capability route is public metadata and must allow cross-origin browser reads. The contract is deliberately bounded to one weather operation and is not a generic OpenAPI marketplace.
+The listing form checks that this manifest matches the provider's field selection before registering. The catalog labels canonical fields as provider-declared and shows extras as unverified. The paid forecast route reuses x402; the capability route is public metadata and must allow cross-origin browser reads. The contract is deliberately bounded to one weather operation and is not a generic OpenAPI marketplace.
 
-For the synthetic local walkthrough, `pnpm demo:weather` starts three unlisted fixture endpoints on ports 4003–4005. Owners manually submit the endpoint they choose through `/list`; only then does it appear in the catalog. `Weather Atlas Demo` supports the full response field set; `Thermo Simple Demo` returns core temperature fields; `Rain & Wind Demo` focuses on precipitation, wind, cloud cover, coordinates, and the weather code. Values are generated fixtures, not upstream weather data. Their API requests are real x402 USDC payments to each fixture's own testnet wallet (roles `weatherAtlas`, `weatherThermo`, `weatherRainwind`, created by `scripts/setup-keys.sh`), and follow `PAYMENTS_MODE` like every other endpoint. Paywalled servers use the shared `buyerCors` middleware (`apps/providers/src/cors.ts`) so browser buyers can pay. Listing and stake transactions use the configured registry mode; with the demo's normal `REGISTRY_MODE=onchain` setting they are signed in the wallet and submitted to Stellar Testnet.
+For the live walkthrough, `pnpm demo:weather` starts four unlisted local endpoints on ports 4003–4006. Owners manually submit the endpoints through `/list`; only then do they appear in the catalog. Port 4003 relays MET Norway values exactly, 4004 makes small in-tolerance adjustments, 4005 makes large contradictions, and 4006 returns the reference values plus extra fields. All four call MET Norway; the adjustments are intentional demo behavior. Paid forecast calls use x402 and follow `PAYMENTS_MODE`. For shared demo hosts the browser, agent and auditor send `x-tb-listing-id`. The host resolves that ID against the registry, verifies the endpoint and active stake, and charges the listing price to its registered owner. It never trusts a client-supplied payout address. A unique active endpoint registration can be selected without the header; ambiguous requests fail before payment. Unregistered demos use the original `TB_WEATHER_*` payout identities. Historical transfers to those fixtures stay credited to the fixtures and are displayed to buyers as legacy payouts. Paywalled servers allow the routing header in shared `buyerCors`. Listings and stakes normally require wallet signatures on Stellar Testnet.
 
 ## Multiple listings and exits
 
@@ -47,7 +47,7 @@ API providers go through the same x402 path as the LLM providers:
 
 ## Auditing: plug in beside the LLM path
 
-Today `apps/auditor/src/runner.ts` sends every active listing chat-completion probes. For an `api:` listing those requests fail, so the verdict comes out *inconclusive* or *unverifiable* and the listing is **never slashed**. That safe default holds until a real API audit exists.
+`apps/auditor/src/runner.ts` dispatches `api:weather@1` to a MET Norway comparison and keeps the existing LLM path for other listings.
 
 To add one, keep these rules:
 
@@ -57,7 +57,9 @@ To add one, keep these rules:
 - **Keep the safety rules the LLM audit follows.** A verdict needs at least `MIN_SCORED` (5) scored probes. Network errors are retried once and then excluded, never counted as cheating. An undecidable result is `inconclusive: true` and never slashes.
 - **Probes are paid traffic.** The auditor pays every probe over x402 like a customer, so probes look like ordinary requests.
 
-Ideas, not requirements: JSON-Schema validation of every response; cross-checking values against an independent source (e.g. a second weather API) within a tolerance; freshness checks on timestamps; repeated identical queries to catch fabricated randomness.
+Each numeric or timestamp field earns `max(0, 100 - 20 × absoluteError / tolerance)` points: exact values earn 100, an error equal to the tolerance earns 80, and five tolerance units earn 0. Wind direction uses circular distance. Missing, malformed or physically invalid provider values earn 0; reference values that cannot be checked are excluded. Exact-match strings earn 100 or 0. The overall grade is the mean of all compared field scores, rounded down. The initial passing grade is 80/100, configurable with `WEATHER_TRUST_THRESHOLD`. This measures agreement with MET Norway, rather than the probability that a provider is honest. Earlier audits used a binary in-tolerance percentage; the dashboard identifies those historical results rather than silently rewriting them.
+
+Weather disagreements and user votes no longer trigger automatic warnings or slashing. A comparable failed audit may open one shared review case per listing; configured human moderators examine evidence and the provider's response. Financial sanctions require a public reason and a separate signed approval; the auditor executes slash then pause. The old `WEATHER_WARNING_THRESHOLD` setting is ignored. Evidence, cases and decisions are persisted in Supabase when configured; standalone local auditing remains available. See [community trust](superpowers/specs/2026-10-25-community-trust.md) and the [Supabase setup guide](supabase-setup.md).
 
 ## UI and agent
 

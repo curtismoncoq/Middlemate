@@ -1,10 +1,10 @@
-import type { Express } from 'express';
-import { validateWeatherCapabilities, WEATHER_SCHEMA_ID } from '@tb/weather-contract';
+import type { Express, RequestHandler } from 'express';
+import { MET_NORWAY_FIELD_IDS, validateWeatherCapabilities, WEATHER_SCHEMA_ID } from '@tb/weather-contract';
 import { paywall } from './paywall.ts';
 import type { Config } from '@tb/config';
 
 export type WeatherRequest = { latitude: number; longitude: number; forecastHours: number };
-export type WeatherData = { location: Record<string, unknown>; forecast: Record<string, unknown> };
+export type WeatherData = { location: Record<string, unknown>; forecast: Record<string, unknown>; extras?: Record<string, unknown> };
 export type WeatherBackend = (request: WeatherRequest) => Promise<WeatherData>;
 
 export type WeatherProviderOptions = {
@@ -14,15 +14,17 @@ export type WeatherProviderOptions = {
   provider?: string;
   name?: string;
   availableFields: string[];
+  extraFields?: string[];
   backend: WeatherBackend;
+  paymentMiddleware?: RequestHandler;
 };
 
 /** Mounts the shared weather contract. The capability document is public; forecasts use x402. */
 export function mountWeatherProvider(app: Express, opts: WeatherProviderOptions) {
-  const manifest = validateWeatherCapabilities({ schema: WEATHER_SCHEMA_ID, availableFields: opts.availableFields });
+  const manifest = validateWeatherCapabilities({ schema: WEATHER_SCHEMA_ID, availableFields: opts.availableFields, extraFields: opts.extraFields });
   const route = '/weather/v1/forecast';
   app.get('/weather/v1/capabilities', (_req, res) => res.json(manifest));
-  app.post(route, paywall(route, `$${opts.priceUsd}`, opts.payTo, { paymentsMode: opts.paymentsMode }), async (req, res) => {
+  app.post(route, opts.paymentMiddleware ?? paywall(route, `$${opts.priceUsd}`, opts.payTo, { paymentsMode: opts.paymentsMode }), async (req, res) => {
     const latitude = req.body?.latitude;
     const longitude = req.body?.longitude;
     const forecastHours = req.body?.forecastHours ?? 1;
@@ -37,16 +39,13 @@ export function mountWeatherProvider(app: Express, opts: WeatherProviderOptions)
       const data = await opts.backend({ latitude, longitude, forecastHours });
       const location = { ...data.location };
       const forecast = { ...data.forecast };
-      for (const id of [
-        'location.name', 'location.latitude', 'location.longitude', 'forecast.validAt', 'forecast.temperatureC', 'forecast.feelsLikeC',
-        'forecast.humidityPct', 'forecast.precipitationMm', 'forecast.precipitationProbabilityPct', 'forecast.windSpeedKmh',
-        'forecast.windDirectionDeg', 'forecast.cloudCoverPct', 'forecast.pressureHpa', 'forecast.uvIndex', 'forecast.weatherCode', 'forecast.summary',
-      ]) {
+      for (const id of MET_NORWAY_FIELD_IDS) {
         if (manifest.availableFields.includes(id)) continue;
         const [group, key] = id.split('.');
         if (group === 'location') delete location[key]; else delete forecast[key];
       }
-      res.json({ schema: WEATHER_SCHEMA_ID, availableFields: manifest.availableFields, location, forecast });
+      const extras = Object.fromEntries((manifest.extraFields ?? []).filter((name) => data.extras?.[name] !== undefined).map((name) => [name, data.extras![name]]));
+      res.json({ ...manifest, location, forecast, ...(manifest.extraFields?.length ? { extras } : {}) });
     } catch (error) {
       res.status(502).json({ error: `weather upstream failed: ${(error as Error).message}` });
     }

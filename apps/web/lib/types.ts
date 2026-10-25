@@ -25,6 +25,7 @@ export type ApiListing = {
   active: boolean;
   /** claimed model is in the verifiable registry (false = auditor can't check it) */
   verifiable?: boolean;
+  communityEnabled?: boolean;
   lastAudit?: AuditSummary;
 };
 

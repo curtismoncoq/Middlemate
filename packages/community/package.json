@@ -1,0 +1,8 @@
+{
+  "name": "@tb/community",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./types": "./src/types.ts", "./receipts": "./src/receipts.ts", "./paying-fetch": "./src/paying-fetch.ts" },
+  "dependencies": { "@tb/config": "workspace:*", "@tb/weather-contract": "workspace:*", "@tb/registry-client": "workspace:*", "@tb/x402-client": "workspace:*", "@stellar/stellar-sdk": "16.4.1" }
+}

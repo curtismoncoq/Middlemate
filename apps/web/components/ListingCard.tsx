@@ -1,5 +1,6 @@
 import { ago, price, txUrl, usdc, type ApiListing } from '../lib/types.ts';
 import { WeatherFieldMatrix } from './WeatherFieldMatrix.tsx';
+import { ListingCommunity } from './Community.tsx';
 
 type Props = { listing: ApiListing; now: number; onTry?: (l: ApiListing) => void; auditing?: { probe: number; total: number }; preview?: boolean };
 
@@ -96,6 +97,8 @@ export function ListingCard({ listing: l, now, onTry, auditing, preview }: Props
       ) : null}
 
       {l.claimedModel === 'api:weather@1' && !preview && <WeatherFieldMatrix listing={l} />}
+      {l.claimedModel === 'api:weather@1' && a && !a.inconclusive && <p>MET Norway concordance: <b>{a.score}/100</b><small className="muted"> · Forecast agreement</small></p>}
+      {l.communityEnabled && !preview && <ListingCommunity listingId={l.id ?? l.provider} />}
 
       <div className="card__money">
         <p className="card__price">

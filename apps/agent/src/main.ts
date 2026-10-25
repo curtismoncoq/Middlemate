@@ -3,7 +3,8 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadConfig, REPO_ROOT, verifiableModels } from '@tb/config';
 import { createRegistryClient, isListingActive, listingKey, type RegistryClient, type EndpointRegistryMethods } from '@tb/registry-client';
-import { createPayingFetch, type PayingFetch } from '@tb/x402-client';
+import { type PayingFetch } from '@tb/x402-client';
+import { createRecordedPayingFetch } from '@tb/community/paying-fetch';
 import { BudgetGuard, usd } from './budget.ts';
 import { chooseListing } from './choose.ts';
 import { runWeatherRequest } from './weather.ts';
@@ -61,7 +62,7 @@ export async function runAgent(d: AgentDeps): Promise<AgentResult> {
         pick.endpoint,
         {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', 'x-tb-listing-id': listingKey(pick) },
           body: JSON.stringify({ messages: [{ role: 'user', content: `Summarize this article in 3 bullet points:\n\n${d.article}` }] }),
           signal: AbortSignal.timeout(45_000),
         },
@@ -102,7 +103,7 @@ async function cli() {
   const guard = new BudgetGuard(budgetAtomic, process.argv.includes('--reset-budget') ? 0n : readSpent());
   const jobs = process.argv.includes('--try-overspend') ? 100 : 1;
   const registry = createRegistryClient(cfg);
-  const pay = createPayingFetch(cfg.keys.agent.secret);
+  const pay = createRecordedPayingFetch(cfg.keys.agent.secret,'agent',cfg);
   if (process.argv.includes('--weather')) {
     const latitude = Number(arg('latitude'));
     const longitude = Number(arg('longitude'));

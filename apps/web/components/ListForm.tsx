@@ -33,6 +33,8 @@ export function ListForm({ models }: { models: ModelOption[] }) {
   const [busy, setBusy] = useState(false);
   const [category, setCategory] = useState<'inference' | 'weather'>('inference');
   const [supportedFields, setSupportedFields] = useState<string[]>(['forecast.temperatureC']);
+  const [extraFields, setExtraFields] = useState<string[]>([]);
+  const [extraFieldDraft, setExtraFieldDraft] = useState('');
 
   const field = (k: Exclude<keyof ListingInput, 'allowUnverifiable'>, label: string, placeholder: string, help?: string) => (
     <div className="field">
@@ -45,8 +47,8 @@ export function ListForm({ models }: { models: ModelOption[] }) {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (category === 'weather' && supportedFields.length === 0) {
-      setFail('Select at least one weather response field your API reliably provides.');
+    if (category === 'weather' && supportedFields.length === 0 && extraFields.length === 0) {
+      setFail('Select at least one MET Norway field or declare an additional field.');
       return;
     }
     // Weather listings declare a schema, not a model; inference listings must pick a verifiable model (or opt out).
@@ -65,6 +67,9 @@ export function ListForm({ models }: { models: ModelOption[] }) {
         const selected = [...new Set(supportedFields)].sort();
         if (JSON.stringify([...manifest.availableFields].sort()) !== JSON.stringify(selected)) {
           throw new Error('The fields you selected must exactly match the provider capability manifest. Update the manifest and try again.');
+        }
+        if (JSON.stringify([...(manifest.extraFields ?? [])].sort()) !== JSON.stringify([...extraFields].sort())) {
+          throw new Error('The extra fields you entered must exactly match the provider capability manifest. Update the manifest and try again.');
         }
       }
       const run = async (label: string, call: unknown) => {
@@ -137,10 +142,24 @@ export function ListForm({ models }: { models: ModelOption[] }) {
       )}
       {category === 'weather' && <fieldset className="weather-provider-fields">
         <legend>Which data fields does your API provide?</legend>
-        <p className="muted">Select fields your endpoint reliably returns. Publish this JSON from public <code>GET /weather/v1/capabilities</code>; the marketplace checks it before registration.</p>
+        <p className="muted">Select the normalized fields your endpoint reliably returns. TrustBazaar checks them against <a href="https://api.met.no/weatherapi/locationforecast/2.0/" target="_blank" rel="noreferrer">MET Norway Locationforecast</a>. Publish the declaration from public <code>GET /weather/v1/capabilities</code>.</p>
         <div className="weather-field-actions"><button className="btn btn--outline" type="button" onClick={() => setSupportedFields(weatherResponseFields.map((f) => f.id))}>Select all fields</button></div>
         {weatherResponseFields.map((f) => <label key={f.id} title={f.description}><input type="checkbox" checked={supportedFields.includes(f.id)} onChange={(e) => setSupportedFields(e.target.checked ? [...supportedFields, f.id] : supportedFields.filter((id) => id !== f.id))} /><span>{f.label}</span>{f.unit && <small>{f.unit}</small>}</label>)}
-        <pre className="capability-json">{JSON.stringify({ schema: WEATHER_SCHEMA_ID, availableFields: supportedFields }, null, 2)}</pre>
+        <div className="weather-extra-fields">
+          <h3>Additional fields</h3>
+          <p className="muted">Fields outside MET Norway may still be sold and displayed. They are not checked against MET Norway and cannot trigger a warning or slashing.</p>
+          <div className="weather-extra-fields__add">
+            <label className="field"><span>Additional field name</span><input value={extraFieldDraft} placeholder="e.g. pollenRisk" onChange={(event) => setExtraFieldDraft(event.target.value)} /></label>
+            <button className="btn btn--outline" type="button" onClick={() => {
+              try {
+                const next = validateWeatherCapabilities({ schema: WEATHER_SCHEMA_ID, availableFields: supportedFields, extraFields: [...extraFields, extraFieldDraft] });
+                setExtraFields(next.extraFields ?? []); setExtraFieldDraft(''); setFail(null);
+              } catch (error) { setFail((error as Error).message); }
+            }}>Add extra field</button>
+          </div>
+          {!!extraFields.length && <ul className="weather-extra-fields__list">{extraFields.map((name) => <li key={name}><code>{name}</code><span>Unverified extra</span><button type="button" aria-label={`Remove ${name}`} onClick={() => setExtraFields(extraFields.filter((fieldName) => fieldName !== name))}>×</button></li>)}</ul>}
+        </div>
+        <pre className="capability-json">{JSON.stringify({ schema: WEATHER_SCHEMA_ID, availableFields: supportedFields, ...(extraFields.length ? { extraFields } : {}) }, null, 2)}</pre>
       </fieldset>}
       <div className="listform__row">
         {field('priceUsd', 'Price per request (USD)', '0.005')}
@@ -168,11 +187,11 @@ export function ListForm({ models }: { models: ModelOption[] }) {
           </li>
           <li className={signed?.hash ? 'is-waiting' : ''}>
             <b>Audit on entry</b>
-            <span>{category === 'weather' ? 'API listings show their declared schema; their data audit is future work.' : 'The auditor buys hidden probes at your price and fingerprints the answers. You show as Under review until it finishes.'}</span>
+            <span>{category === 'weather' ? 'The auditor compares forecasts with MET Norway and publishes the evidence. Disagreement does not automatically slash your stake.' : 'The auditor buys hidden probes at your price and fingerprints the answers. You show as Under review until it finishes.'}</span>
           </li>
           <li>
-            <b>{`Trust ${SLASH_LINE} or more: listed`}</b>
-            <span>Below the line, the stake goes to the treasury and the listing is removed.</span>
+            <b>{category === 'weather' ? 'Reputation, evidence & human review' : `Trust ${SLASH_LINE} or more: listed`}</b>
+            <span>{category === 'weather' ? 'Customers can leave verified reviews and report specific problems. An authorized moderator reviews evidence and your response before a financial sanction.' : 'Below the line, the stake goes to the treasury and the listing is removed.'}</span>
           </li>
         </ol>
       </section>

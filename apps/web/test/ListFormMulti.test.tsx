@@ -32,3 +32,25 @@ it('registers two separately named weather endpoints with one wallet and atomic 
   expect(built[0].call.args.id).not.toBe(built[1].call.args.id);
   expect(built.every((call) => call.call.method === 'registerEndpoint' && call.call.args.amountAtomic === '50000000')).toBe(true);
 });
+
+it('checks free-form extra fields against the public manifest', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.includes('capabilities')) return Response.json({ schema: WEATHER_SCHEMA_ID, availableFields: [], extraFields: ['pollenRisk'] });
+    const body = JSON.parse(String(init?.body));
+    return Response.json(body.action === 'build' ? { xdr: 'unsigned' } : { hash: 'confirmed' });
+  }));
+  render(<ListForm models={[{ id: 'MiniMax-M2.7', label: 'MiniMax' }]} />);
+  fireEvent.click(screen.getByLabelText('Weather API'));
+  fireEvent.change(screen.getByLabelText('Listing name'), { target: { value: 'Weather plus' } });
+  fireEvent.change(screen.getByLabelText('Endpoint URL'), { target: { value: 'https://extra.example/weather/v1/forecast' } });
+  const temperatureToggle = screen.getByText('Air temperature').closest('label')?.querySelector('input');
+  if (!temperatureToggle) throw new Error('Air temperature toggle not found');
+  fireEvent.click(temperatureToggle);
+  fireEvent.change(screen.getByLabelText('Additional field name'), { target: { value: 'pollenRisk' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add extra field' }));
+  expect(screen.getByText('pollenRisk')).toBeTruthy();
+  expect(screen.getByText(/not checked against MET Norway/i)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Register & stake' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Register & stake' })).toBeTruthy());
+  expect(fetch).toHaveBeenCalledWith('/api/tx', expect.objectContaining({ method: 'POST' }));
+});

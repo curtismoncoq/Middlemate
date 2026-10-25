@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@tb/config": "workspace:*",
+    "@tb/community": "workspace:*",
     "@tb/registry-client": "workspace:*",
     "@tb/weather-contract": "workspace:*",
     "next": "^15.5.0",

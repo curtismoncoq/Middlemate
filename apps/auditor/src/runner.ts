@@ -2,6 +2,8 @@ import { listingKey, type Listing, type RegistryClient, type EndpointRegistryMet
 import type { PayingFetch } from '@tb/x402-client';
 import { pickProbes as defaultPickProbes, type Probe } from './probes.ts';
 import { closestReference, computeVerdict, type ProbeResult, type Verdict } from './scoring.ts';
+import { WEATHER_SCHEMA_ID, type NormalizedWeatherData, type WeatherCapabilityManifest } from '@tb/weather-contract';
+import { auditWeatherListing, WEATHER_PROBES, type WeatherAuditEvidence, type WeatherAuditProbe } from './weather-audit.ts';
 
 export type AuditRecord = {
   listingId?: string;
@@ -19,6 +21,10 @@ export type AuditRecord = {
   error?: string;
   /** USDC (atomic) the auditor paid for this audit's probes */
   spentAtomic?: string;
+  /** Progressive weather enforcement: warnings 1 and 2 precede the third-failure slash. */
+  warning?: { level: number; threshold: number };
+  /** Field-level provider versus MET Norway evidence. */
+  weather?: WeatherAuditEvidence;
 };
 
 export const PAY_TIMEOUT_MS = 45_000;
@@ -40,7 +46,7 @@ export function bySuspicion(listings: Listing[]): Listing[] {
   return [...listings].sort((a, b) => ratio(a) - ratio(b));
 }
 
-export type AuditStore = { add(r: AuditRecord): void; all(): AuditRecord[]; clear(): void };
+export type AuditStore = { add(r: AuditRecord): void | Promise<void>; all(): AuditRecord[]; clear(): void; refresh?(): Promise<void> };
 
 export function memoryStore(initial: AuditRecord[] = []): AuditStore {
   const records = [...initial];
@@ -58,6 +64,11 @@ type Deps = {
   pickProbes?: () => Probe[];
   /** models the references cover; listings claiming anything else are unverifiable */
   referenceModels?: string[];
+  weather?: {
+    reference: (request: { latitude: number; longitude: number; forecastHours: number }) => Promise<NormalizedWeatherData>;
+    capabilities?: (endpoint: string) => Promise<WeatherCapabilityManifest>;
+    probes?: WeatherAuditProbe[];
+  };
   log?: (line: string) => void;
 };
 
@@ -77,7 +88,7 @@ export function createRunner(deps: Deps) {
       l.endpoint,
       {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'x-tb-listing-id': listingKey(l) },
         body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], temperature: 0 }),
         signal: AbortSignal.timeout(PAY_TIMEOUT_MS),
       },
@@ -115,21 +126,48 @@ export function createRunner(deps: Deps) {
   }
 
   async function auditOne(l: Listing): Promise<AuditRecord> {
-    const round = pick();
-    current = { listingId: l.id, provider: l.provider, name: l.name, probe: 0, total: round.length };
-    say(l, `probing (${l.claimedModel})`);
-    const probes: ProbeResult[] = [];
-    for (const p of round) {
-      const r = await runProbe(l, p);
-      probes.push(r);
-      current = { ...current, probe: current.probe + 1 };
-      say(l, `${p.id} → ${r.status === 'error' ? 'error ' + r.error : r.kind === 'checkable' ? (r.correct ? 'correct' : 'wrong') : `closest ${r.closest.model} (${r.closest.similarity.toFixed(3)})`}`);
+    const isWeather = l.claimedModel === WEATHER_SCHEMA_ID;
+    let probes: ProbeResult[];
+    let verdict: Verdict;
+    let spentAtomic: string;
+    let weather: WeatherAuditEvidence | undefined;
+
+    if (isWeather) {
+      if (!deps.weather) throw new Error('Weather reference is not configured');
+      const round = deps.weather.probes ?? WEATHER_PROBES;
+      current = { listingId: l.id, provider: l.provider, name: l.name, probe: 0, total: round.length };
+      say(l, 'probing weather against MET Norway');
+      const result = await auditWeatherListing(l, {
+        pay: deps.pay,
+        reference: deps.weather.reference,
+        capabilities: deps.weather.capabilities,
+        probes: round,
+        onProgress: (probe, evidence) => {
+          if (current) current = { ...current, probe: current.probe + 1 };
+          say(l, `${probe.id} → ${evidence.status === 'error' ? `error ${evidence.error}` : evidence.fields.every((field) => field.pass) ? 'within tolerance' : `${evidence.fields.filter((field) => !field.pass).length} contradiction(s)`}`);
+        },
+      });
+      ({ probes, verdict, weather, spentAtomic } = result);
+    } else {
+      const round = pick();
+      current = { listingId: l.id, provider: l.provider, name: l.name, probe: 0, total: round.length };
+      say(l, `probing (${l.claimedModel})`);
+      probes = [];
+      for (const p of round) {
+        const r = await runProbe(l, p);
+        probes.push(r);
+        current = { ...current, probe: current.probe + 1 };
+        say(l, `${p.id} → ${r.status === 'error' ? 'error ' + r.error : r.kind === 'checkable' ? (r.correct ? 'correct' : 'wrong') : `closest ${r.closest.model} (${r.closest.similarity.toFixed(3)})`}`);
+      }
+      verdict = computeVerdict(l.claimedModel, probes, deps.referenceModels);
+      spentAtomic = String(BigInt(probes.filter((p) => p.status === 'ok' && p.txHash).length) * l.priceAtomic);
     }
-    const verdict = computeVerdict(l.claimedModel, probes, deps.referenceModels);
-    const spent = BigInt(probes.filter((p) => p.status === 'ok' && p.txHash).length) * l.priceAtomic;
-    const rec: AuditRecord = { id: `${Date.now()}-${listingKey(l).slice(0, 8)}`, listingId: l.id, at: new Date().toISOString(), provider: l.provider, name: l.name, claimedModel: l.claimedModel, verdict, probes, spentAtomic: String(spent) };
-    say(l, `score ${verdict.score} matched ${verdict.matchedModel} → ${verdict.unverifiable ? 'UNVERIFIABLE (no reference for ' + l.claimedModel + ')' : verdict.pass ? 'PASS' : 'FAIL'}`);
-    if (!verdict.pass) {
+
+    const rec: AuditRecord = { id: `${Date.now()}-${listingKey(l).slice(0, 8)}`, listingId: l.id, at: new Date().toISOString(), provider: l.provider, name: l.name, claimedModel: l.claimedModel, verdict, probes, spentAtomic, ...(weather ? { weather } : {}) };
+    say(l, `score ${verdict.score} matched ${verdict.matchedModel} → ${verdict.unverifiable ? 'UNVERIFIABLE (no reference for ' + l.claimedModel + ')' : verdict.inconclusive ? 'INCONCLUSIVE' : verdict.pass ? 'PASS' : 'FAIL'}`);
+    if (isWeather && !verdict.pass && !verdict.inconclusive) say(l, 'MET Norway disagreement recorded for review — no automatic financial sanction');
+    const shouldSlash = !isWeather && !verdict.pass;
+    if (shouldSlash) {
       try {
         if (l.id && (!deps.registry.slashEndpoint || !deps.registry.pauseEndpoint)) throw new Error('Registry does not support per-listing audits');
         const s = l.id ? await deps.registry.slashEndpoint!(deps.auditorSecret, l.id) : await deps.registry.slash(deps.auditorSecret, l.provider);
@@ -145,7 +183,7 @@ export function createRunner(deps: Deps) {
     }
     // Stamp after the on-chain actions land: the web app keeps the red card up for a window from `at`.
     rec.at = new Date().toISOString();
-    deps.store.add(rec);
+    await deps.store.add(rec);
     return rec;
   }
 
@@ -155,10 +193,15 @@ export function createRunner(deps: Deps) {
   async function runAudit(provider?: string): Promise<AuditRecord[]> {
     if (running) return running;
     running = (async () => {
+      await deps.store.refresh?.();
       const targets = bySuspicion((await deps.registry.list()).filter((l) => l.active && l.stakeAtomic > 0n && (!provider || listingKey(l) === provider || l.provider === provider)));
       const out: AuditRecord[] = [];
       for (const l of targets) {
-        if (deps.referenceModels && !deps.referenceModels.includes(l.claimedModel)) {
+        if (l.claimedModel === WEATHER_SCHEMA_ID && !deps.weather) {
+          say(l, 'skipped — MET Norway reference is unavailable (not probed)');
+          continue;
+        }
+        if (!l.claimedModel.startsWith('api:') && deps.referenceModels && !deps.referenceModels.includes(l.claimedModel)) {
           say(l, `skipped — no reference for ${l.claimedModel} (unverifiable, not probed)`); // don't pay for probes we can't judge
           continue;
         }

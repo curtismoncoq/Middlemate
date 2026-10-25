@@ -1,4 +1,6 @@
 export const WEATHER_SCHEMA_ID = 'api:weather@1' as const;
+/** Optional routing metadata for shared demo hosts; real API providers may ignore it. */
+export const WEATHER_LISTING_HEADER = 'x-tb-listing-id';
 
 export type WeatherField = {
   id: string;
@@ -8,32 +10,39 @@ export type WeatherField = {
   group: 'request' | 'response';
 };
 
-/** Stable superset; providers publish the subset they can return in their capability manifest. */
+/** Normalized MET Norway Locationforecast fields; providers publish the subset they return. */
 export const WEATHER_FIELDS: WeatherField[] = [
   { id: 'request.latitude', label: 'Latitude', unit: '°', description: 'Requested latitude in decimal degrees.', group: 'request' },
   { id: 'request.longitude', label: 'Longitude', unit: '°', description: 'Requested longitude in decimal degrees.', group: 'request' },
   { id: 'request.forecastHours', label: 'Forecast horizon', unit: 'hours', description: 'How far ahead the request asks for a forecast.', group: 'request' },
-  { id: 'location.name', label: 'Resolved place name', unit: '', description: 'A readable place name for the requested coordinates.', group: 'response' },
-  { id: 'location.latitude', label: 'Resolved latitude', unit: '°', description: 'Latitude used by the provider after location resolution.', group: 'response' },
-  { id: 'location.longitude', label: 'Resolved longitude', unit: '°', description: 'Longitude used by the provider after location resolution.', group: 'response' },
-  { id: 'forecast.validAt', label: 'Forecast time', unit: 'UTC', description: 'ISO 8601 time for the forecast values.', group: 'response' },
-  { id: 'forecast.temperatureC', label: 'Temperature', unit: '°C', description: 'Air temperature at 2 metres.', group: 'response' },
-  { id: 'forecast.feelsLikeC', label: 'Feels like', unit: '°C', description: 'Apparent temperature.', group: 'response' },
-  { id: 'forecast.humidityPct', label: 'Relative humidity', unit: '%', description: 'Relative humidity near the surface.', group: 'response' },
-  { id: 'forecast.precipitationMm', label: 'Precipitation', unit: 'mm', description: 'Expected precipitation for the forecast period.', group: 'response' },
-  { id: 'forecast.precipitationProbabilityPct', label: 'Precipitation chance', unit: '%', description: 'Probability of precipitation during the forecast period.', group: 'response' },
-  { id: 'forecast.windSpeedKmh', label: 'Wind speed', unit: 'km/h', description: 'Wind speed near the surface.', group: 'response' },
+  { id: 'location.latitude', label: 'Resolved latitude', unit: '°', description: 'Latitude in the MET Norway GeoJSON point.', group: 'response' },
+  { id: 'location.longitude', label: 'Resolved longitude', unit: '°', description: 'Longitude in the MET Norway GeoJSON point.', group: 'response' },
+  { id: 'forecast.validAt', label: 'Forecast time', unit: 'UTC', description: 'UTC time of the selected MET Norway timeseries entry.', group: 'response' },
+  { id: 'forecast.updatedAt', label: 'Source update time', unit: 'UTC', description: 'Time at which MET Norway updated the forecast data.', group: 'response' },
+  { id: 'forecast.temperatureC', label: 'Air temperature', unit: '°C', description: 'Air temperature at 2 metres.', group: 'response' },
+  { id: 'forecast.apparentTemperatureC', label: 'Apparent temperature', unit: '°C', description: 'MET Norway apparent air temperature.', group: 'response' },
+  { id: 'forecast.humidityPct', label: 'Relative humidity', unit: '%', description: 'Relative humidity at 2 metres.', group: 'response' },
+  { id: 'forecast.dewPointC', label: 'Dew point', unit: '°C', description: 'Dew point temperature at 2 metres.', group: 'response' },
+  { id: 'forecast.precipitationMm', label: 'Precipitation next hour', unit: 'mm', description: 'Precipitation amount for the next one-hour period.', group: 'response' },
+  { id: 'forecast.windSpeedKmh', label: 'Wind speed', unit: 'km/h', description: 'Wind speed at 10 metres, converted from m/s.', group: 'response' },
   { id: 'forecast.windDirectionDeg', label: 'Wind direction', unit: '°', description: 'Direction the wind comes from, clockwise from north.', group: 'response' },
-  { id: 'forecast.cloudCoverPct', label: 'Cloud cover', unit: '%', description: 'Fraction of the sky covered by clouds.', group: 'response' },
-  { id: 'forecast.pressureHpa', label: 'Pressure', unit: 'hPa', description: 'Atmospheric pressure.', group: 'response' },
-  { id: 'forecast.uvIndex', label: 'UV index', unit: '', description: 'Forecast ultraviolet index.', group: 'response' },
-  { id: 'forecast.weatherCode', label: 'Weather code', unit: '', description: 'Provider-normalized weather condition code.', group: 'response' },
-  { id: 'forecast.summary', label: 'Conditions summary', unit: '', description: 'Short human-readable forecast summary.', group: 'response' },
+  { id: 'forecast.cloudCoverPct', label: 'Total cloud cover', unit: '%', description: 'Total cloud area fraction.', group: 'response' },
+  { id: 'forecast.cloudCoverLowPct', label: 'Low cloud cover', unit: '%', description: 'Cloud cover below 2,000 metres.', group: 'response' },
+  { id: 'forecast.cloudCoverMediumPct', label: 'Medium cloud cover', unit: '%', description: 'Cloud cover from 2,000 to 5,000 metres.', group: 'response' },
+  { id: 'forecast.cloudCoverHighPct', label: 'High cloud cover', unit: '%', description: 'Cloud cover above 5,000 metres.', group: 'response' },
+  { id: 'forecast.pressureHpa', label: 'Sea-level pressure', unit: 'hPa', description: 'Air pressure at sea level.', group: 'response' },
+  { id: 'forecast.uvIndexClearSky', label: 'Clear-sky UV index', unit: '', description: 'UV index assuming a cloud-free sky.', group: 'response' },
+  { id: 'forecast.fogPct', label: 'Fog area fraction', unit: '%', description: 'Fraction of the surrounding area covered in fog.', group: 'response' },
+  { id: 'forecast.symbolCode', label: 'Weather symbol', unit: '', description: 'MET Norway weather symbol code for the next hour.', group: 'response' },
 ];
+
+export const MET_NORWAY_FIELD_IDS = WEATHER_FIELDS.filter((field) => field.group === 'response').map((field) => field.id);
 
 export type WeatherCapabilityManifest = {
   schema: typeof WEATHER_SCHEMA_ID;
   availableFields: string[];
+  /** Provider-specific fields shown to buyers but excluded from verification and slashing. */
+  extraFields?: string[];
 };
 
 export function validateWeatherCapabilities(value: unknown): WeatherCapabilityManifest {
@@ -43,10 +52,23 @@ export function validateWeatherCapabilities(value: unknown): WeatherCapabilityMa
   if (!Array.isArray(manifest.availableFields) || manifest.availableFields.some((id) => typeof id !== 'string')) {
     throw new Error('Capability manifest availableFields must be a string array');
   }
-  const allowed = new Set(WEATHER_FIELDS.filter((f) => f.group === 'response').map((f) => f.id));
+  const allowed = new Set(MET_NORWAY_FIELD_IDS);
   const unknown = manifest.availableFields.filter((id) => !allowed.has(id));
   if (unknown.length) throw new Error(`Unknown weather field: ${unknown[0]}`);
-  return { schema: WEATHER_SCHEMA_ID, availableFields: [...new Set(manifest.availableFields)] };
+  if (manifest.extraFields !== undefined && (!Array.isArray(manifest.extraFields) || manifest.extraFields.some((name) => typeof name !== 'string'))) {
+    throw new Error('Capability manifest extraFields must be a string array');
+  }
+  const extraFields = (manifest.extraFields ?? []).map((name) => name.trim());
+  if (extraFields.some((name) => !/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(name))) {
+    throw new Error('Each extra field must have a name using letters, numbers, dot, dash or underscore');
+  }
+  const uniqueExtras = [...new Set(extraFields)];
+  if (uniqueExtras.length > 20) throw new Error('At most 20 extra weather fields may be declared');
+  return {
+    schema: WEATHER_SCHEMA_ID,
+    availableFields: [...new Set(manifest.availableFields)],
+    ...(uniqueExtras.length ? { extraFields: uniqueExtras } : {}),
+  };
 }
 
 export function capabilitiesUrl(endpoint: string): string {
@@ -61,3 +83,5 @@ export function capabilitiesUrl(endpoint: string): string {
   url.hash = '';
   return url.toString();
 }
+
+export * from './met-norway.ts';
