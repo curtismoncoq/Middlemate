@@ -1,4 +1,5 @@
 import { ago, price, txUrl, usdc, type ApiListing } from '../lib/types.ts';
+import { WeatherFieldMatrix } from './WeatherFieldMatrix.tsx';
 
 type Props = { listing: ApiListing; now: number; onTry?: (l: ApiListing) => void };
 
@@ -48,6 +49,7 @@ export function ListingCard({ listing: l, now, onTry }: Props) {
       <p className="card__claim">
         Serves <code>{l.claimedModel}</code>
       </p>
+      {l.claimedModel === 'api:weather@1' && <WeatherFieldMatrix listing={l} />}
       <p className="card__price">
         <span>{price(l.priceAtomic)}</span> / request
       </p>
@@ -56,7 +58,7 @@ export function ListingCard({ listing: l, now, onTry }: Props) {
         {a && <span>audited {ago(a.at, now)}</span>}
       </footer>
       <button className="btn" onClick={() => onTry?.(l)} disabled={!l.active}>
-        Try it
+        {l.claimedModel === 'api:weather@1' ? 'Try weather API' : 'Try it'}
       </button>
     </article>
   );

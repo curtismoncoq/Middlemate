@@ -7,7 +7,7 @@ const cfg = loadConfig();
 const registry = createRegistryClient(cfg);
 export const AUDITOR_URL = process.env.AUDITOR_URL ?? `http://localhost:${cfg.auditorPort}`;
 
-type RawAudit = AuditSummary & { provider: string; verdict?: { score: number; matchedModel: string; confidence: number; pass: boolean; inconclusive: boolean; unverifiable?: boolean }; probes?: unknown[] };
+type RawAudit = AuditSummary & { provider: string; name: string; verdict?: { score: number; matchedModel: string; confidence: number; pass: boolean; inconclusive: boolean; unverifiable?: boolean }; probes?: unknown[] };
 
 export async function fetchAudits(): Promise<RawAudit[]> {
   try {

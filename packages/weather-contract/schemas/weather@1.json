@@ -1,0 +1,88 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TrustBazaar Weather API",
+    "version": "1",
+    "description": "Canonical machine-readable contract for api:weather@1. Providers support a declared subset of response fields; all returned values use metric units."
+  },
+  "paths": {
+    "/weather/v1/forecast": {
+      "post": {
+        "operationId": "getWeatherForecast",
+        "summary": "Get a weather forecast for coordinates",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WeatherRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Weather data matching the declared provider capabilities.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WeatherResponse" } } } },
+          "400": { "description": "Invalid request body." },
+          "402": { "description": "x402 payment required." },
+          "502": { "description": "Upstream weather source unavailable." }
+        },
+        "x-payment": "x402 exact on stellar:testnet; price is listed in the TrustBazaar registry"
+      }
+    },
+    "/weather/v1/capabilities": {
+      "get": {
+        "operationId": "getWeatherCapabilities",
+        "summary": "Read the provider's public weather field declaration",
+        "responses": {
+          "200": { "description": "Provider-declared field availability.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WeatherCapabilities" } } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "WeatherRequest": {
+        "type": "object",
+        "required": ["latitude", "longitude"],
+        "properties": {
+          "latitude": { "type": "number", "minimum": -90, "maximum": 90, "description": "Requested latitude in decimal degrees." },
+          "longitude": { "type": "number", "minimum": -180, "maximum": 180, "description": "Requested longitude in decimal degrees." },
+          "forecastHours": { "type": "integer", "minimum": 1, "maximum": 48, "default": 1, "description": "Forecast horizon in hours." }
+        },
+        "additionalProperties": false
+      },
+      "WeatherResponse": {
+        "type": "object",
+        "required": ["schema", "availableFields", "location", "forecast"],
+        "properties": {
+          "schema": { "const": "api:weather@1" },
+          "availableFields": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "location": { "type": "object", "properties": { "name": { "type": "string" }, "latitude": { "type": "number" }, "longitude": { "type": "number" } }, "additionalProperties": false },
+          "forecast": {
+            "type": "object",
+            "properties": {
+              "validAt": { "type": "string", "format": "date-time" },
+              "temperatureC": { "type": "number" },
+              "feelsLikeC": { "type": "number" },
+              "humidityPct": { "type": "number", "minimum": 0, "maximum": 100 },
+              "precipitationMm": { "type": "number", "minimum": 0 },
+              "precipitationProbabilityPct": { "type": "number", "minimum": 0, "maximum": 100 },
+              "windSpeedKmh": { "type": "number", "minimum": 0 },
+              "windDirectionDeg": { "type": "number", "minimum": 0, "maximum": 360 },
+              "cloudCoverPct": { "type": "number", "minimum": 0, "maximum": 100 },
+              "pressureHpa": { "type": "number", "minimum": 0 },
+              "uvIndex": { "type": "number", "minimum": 0 },
+              "weatherCode": { "type": "integer" },
+              "summary": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "WeatherCapabilities": {
+        "type": "object",
+        "required": ["schema", "availableFields"],
+        "properties": {
+          "schema": { "const": "api:weather@1" },
+          "availableFields": { "type": "array", "uniqueItems": true, "items": { "type": "string", "enum": ["location.name", "location.latitude", "location.longitude", "forecast.validAt", "forecast.temperatureC", "forecast.feelsLikeC", "forecast.humidityPct", "forecast.precipitationMm", "forecast.precipitationProbabilityPct", "forecast.windSpeedKmh", "forecast.windDirectionDeg", "forecast.cloudCoverPct", "forecast.pressureHpa", "forecast.uvIndex", "forecast.weatherCode", "forecast.summary"] } }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

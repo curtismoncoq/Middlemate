@@ -2,6 +2,8 @@
 
 ## Before recording
 
+For a field-matrix walkthrough with synthetic APIs, run `pnpm demo:weather` in place of the LLM demo setup below. It starts three unlisted local fixture endpoints: Atlas (:4003), Thermo (:4004), and Rain & Wind (:4005). With the checked-in example configuration (`REGISTRY_MODE=onchain`), connect Freighter on Testnet, open `/list`, choose Weather API, and submit one endpoint such as `http://localhost:4003/weather/v1/forecast`. Approve the register and stake transactions in your wallet; the listing appears only after submission. Forecast values are fixtures, not live weather, and requests to these local fixture APIs use simulated x402 payments. Dashboard earnings and spend show confirmed onchain USDC transfers only, from the recent Stellar RPC event window. Stop the demo with Ctrl-C. This mode does not replace the LLM demo runbook below.
+
 1. `pnpm demo:reset`. This gives CheapMax a fresh staked identity if it was slashed, resets the agent's $0.50 budget and clears the audit log.
 2. `pnpm dev`. This starts the web app (:3000), providers (:4001) and auditor (:4002). Restart it after every reset so the providers use the new CheapMax key.
 3. Pre-warm Ollama so the first answer isn't slow: `pnpm agent --budget 0` (it refuses to pay, but it loads the catalog), plus one Try-it message to Provider B.

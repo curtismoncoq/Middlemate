@@ -15,6 +15,20 @@ claimedModel = "api:<schema-name>@<version>"      e.g. "api:weather@1"
 - Price and stake follow the same rules: USDC atomic units (7 decimals), `register` then `stake`, using the provider's own key.
 - `seedListings()` in `@tb/config` is typed for the three LLM listings. Add a sibling such as `seedApiListings()` next to it, and keep `seedListings()` returning the LLM set unchanged (the demo depends on it).
 
+### Weather v1 contract and capability declaration
+
+The first supported API contract is `api:weather@1`, published as an OpenAPI 3.1 document at `/api/schemas/weather/v1`. It defines a JSON `POST /weather/v1/forecast` request with latitude, longitude, and forecast horizon, and a normalized metric response. The `packages/weather-contract` package contains the canonical schema and stable field catalog for the web app and agent.
+
+Request inputs are listed separately from response capabilities. Latitude and longitude are required inputs; they are not marked “not provided” when a provider does not echo resolved coordinates. Providers choose from the response field catalog and publish a public JSON manifest at the sibling `/weather/v1/capabilities` path:
+
+```json
+{"schema":"api:weather@1","availableFields":["forecast.temperatureC","forecast.validAt"]}
+```
+
+The listing form checks that this manifest matches the provider's field selection before registering. The catalog labels those fields as provider-declared; it must not present declarations as independently verified until the weather audit verifies them. The paid forecast route reuses x402; the capability route is public metadata and must allow cross-origin browser reads. The contract is deliberately bounded to one weather operation and is not a generic OpenAPI marketplace.
+
+For the synthetic local walkthrough, `pnpm demo:weather` starts three unlisted fixture endpoints on ports 4003–4005. Owners manually submit the endpoint they choose through `/list`; only then does it appear in the catalog. `Weather Atlas Demo` supports the full response field set; `Thermo Simple Demo` returns core temperature fields; `Rain & Wind Demo` focuses on precipitation, wind, cloud cover, coordinates, and the weather code. Values are generated fixtures, not upstream weather data. Their API requests use simulated payments. Listing and stake transactions use the configured registry mode; with the demo's normal `REGISTRY_MODE=onchain` setting they are signed in the wallet and submitted to Stellar Testnet.
+
 ## Serving: reuse the paywall
 
 API providers go through the same x402 path as the LLM providers:

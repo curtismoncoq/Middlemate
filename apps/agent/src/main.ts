@@ -6,6 +6,7 @@ import { createRegistryClient, type RegistryClient } from '@tb/registry-client';
 import { createPayingFetch, type PayingFetch } from '@tb/x402-client';
 import { BudgetGuard, usd } from './budget.ts';
 import { chooseListing } from './choose.ts';
+import { runWeatherRequest } from './weather.ts';
 
 type AgentDeps = {
   registry: Pick<RegistryClient, 'list' | 'isActive'>;
@@ -86,8 +87,17 @@ async function cli() {
   const budgetAtomic = BigInt(Math.round(Number(arg('budget') ?? 0.5) * 1e7));
   const guard = new BudgetGuard(budgetAtomic, process.argv.includes('--reset-budget') ? 0n : readSpent());
   const jobs = process.argv.includes('--try-overspend') ? 100 : 1;
-
-  await runAgent({ registry: createRegistryClient(cfg), pay: createPayingFetch(cfg.keys.agent.secret), log: console.log, model, article, budgetAtomic, guard, jobs });
+  const registry = createRegistryClient(cfg);
+  const pay = createPayingFetch(cfg.keys.agent.secret);
+  if (process.argv.includes('--weather')) {
+    const latitude = Number(arg('latitude'));
+    const longitude = Number(arg('longitude'));
+    if (!arg('latitude') || !arg('longitude')) throw new Error('weather mode requires --latitude and --longitude');
+    const marketplaceUrl = process.env.TRUSTBAZAAR_URL ?? 'http://localhost:3000';
+    await runWeatherRequest({ registry, pay, log: console.log, guard, schemaUrl: `${marketplaceUrl.replace(/\/$/, '')}/api/schemas/weather/v1` }, { latitude, longitude, forecastHours: Number(arg('hours') ?? 1) });
+  } else {
+    await runAgent({ registry, pay, log: console.log, model, article, budgetAtomic, guard, jobs });
+  }
 
   mkdirSync(path.dirname(SPEND_FILE), { recursive: true });
   writeFileSync(SPEND_FILE, JSON.stringify({ spentAtomic: String(guard.spentAtomic()) }));
