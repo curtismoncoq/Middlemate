@@ -18,12 +18,12 @@ Allow about 10 s per paid request: settlement waits for a ledger.
 | 2 | 0:20 | `/list` | Fill in the form (name, endpoint, model, price, stake 1 USDC), approve the two Freighter prompts, and the new card appears. *"To list, you stake."* (Fallback if time is short: show the cards and say they're staked; point at the stake badge.) |
 | 3 | 0:50 | Catalog → Try it on Provider B | Send a question and approve in Freighter. The answer comes back with a **paid · tx** link; click it to show stellar.expert. *"Humans pay per message over x402. No account, no API key."* |
 | 4 | 1:15 | Terminal | `pnpm agent`. It prints the $0.50 budget, **picks CheapMax $0.012 (cheapest MiniMax)**, pays (tx hash) and prints the summary. *"The agent picks the cheapest model claiming MiniMax."* |
-| 5 | 1:40 | Catalog | Click **Run audit now**. The terminal running `pnpm dev` streams probe lines (`closest qwen2.5:0.5b (1.000)`). The CheapMax card **turns red: SLASHED · DELISTED, Actually matched: qwen2.5:0.5b**, then disappears after 20 s. Click the slash tx link. *"It claimed MiniMax and served a 0.5B model. It lost its stake on-chain."* |
+| 5 | 1:40 | Catalog | Click **Run audit now**. The terminal running `pnpm dev` streams probe lines (`closest qwen2.5:0.5b (1.000)`). The auditor checks underpriced claims first, so CheapMax goes first. About **1.5–2 minutes later** (6 paid probes, then slash and delist on-chain) its card **turns red: SLASHED · DELISTED, Actually matched: qwen2.5:0.5b**, and stays red for 60 s. **Cut the wait in editing.** Click the slash tx link. *"It claimed MiniMax and served a 0.5B model. It lost its stake on-chain."* |
 | 6 | 2:05 | Terminal | `pnpm agent` again. It now picks **Provider A** (CheapMax is no longer listed). Then `pnpm agent --try-overspend`, which prints **REJECTED: payment $2.00 exceeds remaining budget**. |
 | 7 | 2:20 | Catalog | *"Agents can pay for compute, and compute has to prove it's honest."* |
 
-"Run audit now" audits every active listing, which costs about $0.25 of the auditor's USDC. To audit only CheapMax:
-`curl -X POST localhost:4002/audit/run -H 'content-type: application/json' -d "{\"provider\":\"$(grep TB_CHEAPMAX_PUBLIC .env | cut -d= -f2)\"}"`
+"Run audit now" returns immediately and audits every active listing in the background, CheapMax first. A full round costs about $0.25 of the auditor's USDC and takes about 5 min. To audit only CheapMax:
+`curl -X POST "localhost:4002/audit/run" -H 'content-type: application/json' -d "{\"provider\":\"$(grep TB_CHEAPMAX_PUBLIC .env | cut -d= -f2)\"}"`
 
 ## If something breaks on camera
 

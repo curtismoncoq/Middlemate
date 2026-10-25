@@ -43,12 +43,19 @@ app.use((_req, res, next) => {
   next();
 });
 app.get('/audits', (_req, res) => res.json(store.all()));
+// Starts a round and returns at once (rounds take minutes; clients poll /audits). `?wait=1` blocks until done.
 app.post('/audit/run', async (req, res) => {
-  try {
-    res.json(await runner.runAudit(req.body?.provider));
-  } catch (e) {
-    res.status(500).json({ error: (e as Error).message });
+  const round = runner.runAudit(req.body?.provider);
+  if (req.query.wait) {
+    try {
+      res.json(await round);
+    } catch (e) {
+      res.status(500).json({ error: (e as Error).message });
+    }
+    return;
   }
+  round.catch((e) => console.error('[auditor] round failed', e));
+  res.status(202).json({ started: true });
 });
 
 app.listen(cfg.auditorPort, () => console.log(`[auditor] listening on :${cfg.auditorPort} (payments: ${cfg.paymentsMode}, interval ${INTERVAL || 'off'})`));

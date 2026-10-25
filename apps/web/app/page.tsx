@@ -40,7 +40,8 @@ export default function CatalogPage() {
     try {
       await fetch('/api/audit/run', { method: 'POST', body: '{}' });
     } finally {
-      setAuditing(false);
+      // The round runs in the background; results stream into the catalog via polling.
+      setTimeout(() => setAuditing(false), 8000);
     }
   };
 
@@ -55,7 +56,7 @@ export default function CatalogPage() {
           </p>
         </div>
         <button className="btn btn--audit" onClick={runAudit} disabled={auditing}>
-          {auditing ? 'Auditing… probes in flight' : 'Run audit now'}
+          {auditing ? 'Audit started — probes in flight' : 'Run audit now'}
         </button>
       </section>
       <Catalog state={state} now={now} onTry={setTrying} />
