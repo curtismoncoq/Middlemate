@@ -34,6 +34,28 @@ importers:
         specifier: ^3.2.0
         version: 3.2.7(@types/node@24.19.2)(tsx@4.23.15)
 
+  apps/auditor:
+    dependencies:
+      '@tb/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@tb/providers':
+        specifier: workspace:*
+        version: link:../providers
+      '@tb/registry-client':
+        specifier: workspace:*
+        version: link:../../packages/registry-client
+      '@tb/x402-client':
+        specifier: workspace:*
+        version: link:../../packages/x402-client
+      express:
+        specifier: ^5.1.0
+        version: 5.3.0
+    devDependencies:
+      '@types/express':
+        specifier: ^5.0.0
+        version: 5.0.6
+
   apps/providers:
     dependencies:
       '@stellar/stellar-sdk':
