@@ -15,16 +15,20 @@ async function api(body: unknown) {
   return j;
 }
 
-export function ListForm() {
+export type ModelOption = { id: string; label: string };
+const OTHER = '__other__';
+
+export function ListForm({ models }: { models: ModelOption[] }) {
   const w = useWallet();
   const router = useRouter();
-  const [form, setForm] = useState<ListingInput>({ name: '', endpoint: '', claimedModel: '', priceUsd: '0.005', stakeUsdc: '5' });
+  const [form, setForm] = useState<ListingInput>({ name: '', endpoint: '', claimedModel: models[0]?.id ?? '', priceUsd: '0.005', stakeUsdc: '5' });
+  const [choice, setChoice] = useState(models[0]?.id ?? OTHER);
   const [errors, setErrors] = useState<Partial<Record<keyof ListingInput, string>>>({});
   const [steps, setSteps] = useState<Step[]>([]);
   const [fail, setFail] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const field = (k: keyof ListingInput, label: string, placeholder: string) => (
+  const field = (k: Exclude<keyof ListingInput, 'allowUnverifiable'>, label: string, placeholder: string) => (
     <label className="field">
       <span>{label}</span>
       <input value={form[k]} placeholder={placeholder} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
@@ -34,7 +38,7 @@ export function ListForm() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const v = validateListing(form);
+    const v = validateListing(form, models.map((m) => m.id));
     if (!v.ok) return setErrors(v.errors);
     setErrors({});
     if (!w.address) return setFail('Connect your wallet first.');
@@ -64,7 +68,33 @@ export function ListForm() {
     <form className="listform" onSubmit={submit}>
       {field('name', 'Listing name', 'My Llama endpoint')}
       {field('endpoint', 'Endpoint URL (OpenAI-compatible chat completions, behind x402)', 'https://…/v1/chat/completions')}
-      {field('claimedModel', 'Model you serve', 'llama3.2:3b')}
+      <label className="field">
+        <span>Model you serve</span>
+        <select
+          value={choice}
+          onChange={(e) => {
+            setChoice(e.target.value);
+            setForm({ ...form, claimedModel: e.target.value === OTHER ? '' : e.target.value, allowUnverifiable: false });
+          }}
+        >
+          {models.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label} ({m.id}) — verifiable
+            </option>
+          ))}
+          <option value={OTHER}>Other model (unverifiable)…</option>
+        </select>
+        {choice !== OTHER && errors.claimedModel && <small className="empty--error">{errors.claimedModel}</small>}
+      </label>
+      {choice === OTHER && (
+        <>
+          {field('claimedModel', 'Model name', 'e.g. my-finetune-7b')}
+          <label className="check">
+            <input type="checkbox" checked={!!form.allowUnverifiable} onChange={(e) => setForm({ ...form, allowUnverifiable: e.target.checked })} />
+            I understand the auditor can&apos;t verify this model: the listing gets a warning badge, no trust score, and agents skip it by default.
+          </label>
+        </>
+      )}
       <div className="listform__row">
         {field('priceUsd', 'Price per request (USD)', '0.005')}
         {field('stakeUsdc', 'Stake (USDC)', '5')}

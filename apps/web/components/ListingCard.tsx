@@ -42,7 +42,9 @@ export function ListingCard({ listing: l, now, onTry, auditing }: Props) {
       )}
       <header className="card__head">
         <h3>{l.name}</h3>
-        {!a ? (
+        {l.verifiable === false || a?.unverifiable ? (
+          <span className="badge badge--amber" title="No reference model to compare against">⚠ Unverifiable model</span>
+        ) : !a ? (
           <span className="badge">Not audited yet</span>
         ) : a.unverifiable ? (
           <span className="badge badge--amber" title="No reference model to compare against">Unverifiable model</span>
@@ -53,6 +55,7 @@ export function ListingCard({ listing: l, now, onTry, auditing }: Props) {
       <p className="card__claim">
         Serves <code>{l.claimedModel}</code>
       </p>
+      {(l.verifiable === false || a?.unverifiable) && <p className="card__warn">This model can&apos;t be checked by the auditor — buy at your own risk.</p>}
       <p className="card__price">
         <span>{price(l.priceAtomic)}</span> / request
       </p>

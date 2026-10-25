@@ -1,11 +1,15 @@
 import { minimaxBackend, ollamaBackend, type Backend } from '@tb/providers/backends';
-import type { Config } from '@tb/config';
+import { verifiableModels, type Config } from '@tb/config';
 
-export const REFERENCE_MODELS = (cfg: Config) => ({
-  [cfg.minimaxModel]: minimaxBackend(cfg.minimaxBaseUrl, cfg.minimaxApiKey ?? '', cfg.minimaxModel),
-  'llama3.2:3b': ollamaBackend(cfg.ollamaUrl, 'llama3.2:3b'),
-  'qwen2.5:0.5b': ollamaBackend(cfg.ollamaUrl, 'qwen2.5:0.5b'),
-});
+export const REFERENCE_MODELS = (cfg: Config): Record<string, Backend> =>
+  Object.fromEntries(
+    verifiableModels(cfg.minimaxModel).map((m) => [
+      m.id,
+      m.reference.kind === 'minimax'
+        ? minimaxBackend(cfg.minimaxBaseUrl, cfg.minimaxApiKey ?? '', cfg.minimaxModel)
+        : ollamaBackend(cfg.ollamaUrl, m.reference.model),
+    ]),
+  );
 
 /** Reference answers per prompt from every model we can host or call, cached for `ttlMs`. */
 export function createReferences(models: Record<string, Backend>, ttlMs = 15 * 60_000) {

@@ -144,3 +144,6 @@ a { color: var(--teal); }
 .feed code { color: #cfe9e5; }
 .feed--bad code, .feed--bad b { color: #ff9f8f; }
 .feed--good code { color: #8be0b5; }
+.card__warn { margin: 0; font-size: 13px; color: var(--amber); }
+.field select { font: inherit; font-weight: 400; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--ink-2); }

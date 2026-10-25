@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { loadConfig, REPO_ROOT } from '@tb/config';
+import { loadConfig, REPO_ROOT, verifiableModels } from '@tb/config';
 import { createRegistryClient, type RegistryClient } from '@tb/registry-client';
 import { createPayingFetch, type PayingFetch } from '@tb/x402-client';
 import { BudgetGuard, usd } from './budget.ts';
@@ -15,6 +15,8 @@ type AgentDeps = {
   article: string;
   budgetAtomic: bigint;
   guard?: BudgetGuard;
+  /** only buy models the auditor can verify (unset = no filter) */
+  verifiable?: Set<string>;
   /** number of summaries requested in one job (overspend demo asks for many) */
   jobs?: number;
 };
@@ -28,9 +30,9 @@ export async function runAgent(d: AgentDeps): Promise<AgentResult> {
   const exclude = new Set<string>();
 
   for (;;) {
-    const pick = chooseListing(await d.registry.list(), d.model, exclude);
+    const pick = chooseListing(await d.registry.list(), d.model, exclude, d.verifiable);
     if (!pick) {
-      d.log(`[agent] no active provider for ${d.model} — stopping, nothing paid`);
+      d.log(`[agent] no active ${d.verifiable ? 'verifiable ' : ''}provider for ${d.model} — stopping, nothing paid`);
       return { paidTo: null };
     }
     d.log(`[agent] picked ${pick.name} at ${usd(pick.priceAtomic)}/request (cheapest ${d.model})`);
@@ -92,7 +94,8 @@ async function cli() {
   const guard = new BudgetGuard(budgetAtomic, process.argv.includes('--reset-budget') ? 0n : readSpent());
   const jobs = process.argv.includes('--try-overspend') ? 100 : 1;
 
-  await runAgent({ registry: createRegistryClient(cfg), pay: createPayingFetch(cfg.keys.agent.secret), log: console.log, model, article, budgetAtomic, guard, jobs });
+  await runAgent({ registry: createRegistryClient(cfg), pay: createPayingFetch(cfg.keys.agent.secret), log: console.log, model, article, budgetAtomic, guard, jobs,
+    verifiable: process.argv.includes('--allow-unverifiable') ? undefined : new Set(verifiableModels(cfg.minimaxModel).map((m) => m.id)) });
 
   mkdirSync(path.dirname(SPEND_FILE), { recursive: true });
   writeFileSync(SPEND_FILE, JSON.stringify({ spentAtomic: String(guard.spentAtomic()) }));

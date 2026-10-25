@@ -20,6 +20,8 @@ export type ApiListing = {
   priceAtomic: string;
   stakeAtomic: string;
   active: boolean;
+  /** claimed model is in the verifiable registry (false = auditor can't check it) */
+  verifiable?: boolean;
   lastAudit?: AuditSummary;
 };
 

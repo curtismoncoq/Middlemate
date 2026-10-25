@@ -29,6 +29,14 @@ describe('usd', () => {
   });
 });
 
+describe('chooseListing verifiable filter', () => {
+  it('skips listings whose model is not in the verifiable set', () => {
+    const fake = L('FakeMax', 'GF', 'MiniMax-M2.7-Pro', 1000n);
+    expect(chooseListing([fake, A], 'MiniMax-M2.7-Pro', new Set(), new Set(['MiniMax-M2.7']))).toBeNull();
+    expect(chooseListing([fake, A], 'MiniMax-M2.7', new Set(), new Set(['MiniMax-M2.7']))?.name).toBe('Provider A');
+  });
+});
+
 describe('BudgetGuard', () => {
   it('refuses spending over the cap', () => {
     const g = new BudgetGuard(5000000n);

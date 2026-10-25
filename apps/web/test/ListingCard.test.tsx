@@ -40,6 +40,14 @@ describe('ListingCard unverifiable', () => {
   });
 });
 
+describe('ListingCard unverifiable before any audit', () => {
+  it('warns that the claimed model cannot be verified', () => {
+    render(<ListingCard listing={{ ...base, claimedModel: 'Claude Opus 5.5', verifiable: false }} now={Date.now()} />);
+    expect(screen.getByText(/Unverifiable model/)).toBeTruthy();
+    expect(screen.getByText(/can't be checked by the auditor/)).toBeTruthy();
+  });
+});
+
 describe('Catalog states', () => {
   it('shows an error state when the registry is unavailable', () => {
     render(<Catalog state={{ status: 'error', message: 'rpc down' }} now={Date.now()} />);
