@@ -64,7 +64,7 @@ Calibration over 3 rounds: Provider A scored 83/100/83, Provider B 70/85/85, and
 | Payments | x402 `exact` scheme on `stellar:testnet` (`@x402/express`, `@x402/fetch`, `@x402/stellar` 2.28), USDC SAC, fee-sponsored settlement |
 | Contract | Soroban (soroban-sdk 28) with **OpenZeppelin Stellar Contracts 0.8**: Access Control (`auditor` role, `#[only_role]`), Pausable (registry-wide emergency stop) |
 | Staking | Stellar Asset Contract (USDC) transfers into and out of the registry |
-| Wallets | **Stellar Wallets Kit** (Freighter, xBull, Lobstr, Albedo…): `signAuthEntry` for x402, `signTransaction` for register/stake |
+| Wallets | **Freighter** via Stellar Wallets Kit: `signAuthEntry` for x402, `signTransaction` for register/stake |
 
 ## Run it
 
@@ -96,11 +96,14 @@ Tests: `pnpm test` (59 TypeScript tests) and `cargo test -p registry` (11 contra
 - **The agent's spending cap is enforced in the agent's code, off-chain.** The on-chain version (an OpenZeppelin smart account with a spending-limit policy) is blocked today by an x402 facilitator bug with policy events ([x402#3352](https://github.com/x402-foundation/x402/issues/3352)). The agent's wallet only holds $0.50, which bounds the worst case.
 - **The facilitator is self-hosted** (in-process, built from the official x402 libraries, with our admin key paying fees) rather than the hosted OpenZeppelin facilitator, which requires an API key.
 - **No unstake yet.** Stake can only be slashed; a withdrawal with a cooldown is future work.
+- **Weather demo APIs are synthetic local fixtures.** `pnpm demo:weather` starts three endpoints on your machine and does not list them automatically. Submit one through `/list`; with `REGISTRY_MODE=onchain` the listing and stake are registered on Stellar Testnet and require wallet signatures. Requests to these fixtures use simulated x402 payments, so they do not move USDC and are excluded from earnings/spend. The dashboard reads confirmed USDC transfer events from Stellar Testnet RPC; RPC event history is limited to about seven days. Forecast values are fixtures, not real-world weather, and API-specific truth audits are future work.
+- **Providers cannot self-pause in the registry.** The deployed registry only permits the auditor to call `pause_listing`. A provider can stop serving by disabling the API at its host; provider-controlled registry pause needs a contract change.
+- **Wallets:** the live marketplace is on Stellar Testnet and currently uses Freighter. MetaMask's available Stellar adapter supports PUBNET only, so it cannot safely sign this app's Testnet payment or registry operations yet.
 - **Testnet only.** Nothing here has been audited.
 
 ## What's next
 
 - On-chain agent spending caps through OpenZeppelin smart accounts once the facilitator fix lands.
-- A second category of plain (non-LLM) APIs, verified against a declared response schema.
+- Complete the weather API provider and auditor paths, then add more API categories only with explicit request/response contracts and category-specific audit rules.
 - Reputation over time instead of single-round verdicts, unstake with a cooldown, and audits that third parties can run and challenge.
 - A trust layer any x402 seller can plug into, not just this catalog.

@@ -2,6 +2,7 @@ import express, { type Express } from 'express';
 import { seedListings, type Config, type SeedListing } from '@tb/config';
 import { paywall } from './paywall.ts';
 import type { Backend, ChatMessage } from './backends.ts';
+import { mountWeatherProvider, type WeatherProviderOptions } from './weather.ts';
 
 export type BackendFactory = { minimax: Backend; ollama: (model: string) => Backend };
 
@@ -10,6 +11,7 @@ type AppOpts = {
   minimaxModel: string;
   payTo: (role: SeedListing['role']) => string;
   backends: BackendFactory;
+  weather?: WeatherProviderOptions;
 };
 
 /** One Express app serving every seed listing at POST /<slug>/v1/chat/completions behind x402. */
@@ -22,7 +24,7 @@ export function createApp(opts: AppOpts): Express {
     res.setHeader('access-control-allow-headers', 'content-type, payment-signature, x-payment, x-simulated-payment, access-control-expose-headers');
     res.setHeader('access-control-expose-headers', 'payment-required, payment-response, x-payment-response');
     if (req.method === 'OPTIONS') {
-      res.setHeader('access-control-allow-methods', 'POST, OPTIONS');
+      res.setHeader('access-control-allow-methods', 'GET, POST, OPTIONS');
       res.status(204).end();
       return;
     }
@@ -32,7 +34,8 @@ export function createApp(opts: AppOpts): Express {
   for (const l of seedListings(opts.minimaxModel)) {
     const route = `/${l.slug}/v1/chat/completions`;
     const backend = l.servedBy.kind === 'minimax' ? opts.backends.minimax : opts.backends.ollama(l.servedBy.model);
-    app.post(route, paywall(route, `$${l.priceUsd}`, opts.payTo(l.role), { paymentsMode: opts.paymentsMode }), async (req, res) => {
+    const recipient = opts.payTo(l.role);
+    app.post(route, paywall(route, `$${l.priceUsd}`, recipient, { paymentsMode: opts.paymentsMode }), async (req, res) => {
       const messages = req.body?.messages as ChatMessage[] | undefined;
       if (!Array.isArray(messages) || messages.length === 0) {
         res.status(400).json({ error: 'body must include a non-empty messages array' });
@@ -47,5 +50,6 @@ export function createApp(opts: AppOpts): Express {
       }
     });
   }
+  if (opts.weather) mountWeatherProvider(app, opts.weather);
   return app;
 }

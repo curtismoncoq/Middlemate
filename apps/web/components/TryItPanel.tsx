@@ -4,7 +4,8 @@ import { price, txUrl, type ApiListing } from '../lib/types.ts';
 
 export type BrowserPay = (url: string, init: RequestInit) => Promise<Response & { payment?: { txHash: string } }>;
 type Msg = { role: 'user' | 'assistant'; content: string; txHash?: string };
-type Props = { listing: ApiListing; pay: BrowserPay | null; onClose: () => void };
+export type TryItProps = { listing: ApiListing; pay: BrowserPay | null; onClose: () => void };
+type Props = TryItProps;
 
 export function TryItPanel({ listing, pay, onClose }: Props) {
   const [draft, setDraft] = useState('');
