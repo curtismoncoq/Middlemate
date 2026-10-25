@@ -28,7 +28,7 @@ const runner = createRunner({
   registry: createRegistryClient(cfg),
   auditorSecret: cfg.keys.auditor.secret,
   pay: createPayingFetch(cfg.keys.auditor.secret),
-  references: createReferences(REFERENCE_MODELS(cfg)),
+  references: createReferences(REFERENCE_MODELS(cfg), { file: path.join(REPO_ROOT, 'data/references.json') }),
   referenceModels: Object.keys(REFERENCE_MODELS(cfg)),
   embed: ollamaEmbed(cfg.ollamaUrl),
   store,

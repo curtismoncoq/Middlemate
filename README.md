@@ -66,6 +66,11 @@ Calibration over 3 rounds: Provider A scored 83/100/83, Provider B 70/85/85, and
 | Staking | Stellar Asset Contract (USDC) transfers into and out of the registry |
 | Wallets | **Stellar Wallets Kit** (Freighter, xBull, Lobstr, Albedo…): `signAuthEntry` for x402, `signTransaction` for register/stake |
 
+## Model registry and audit economics
+
+- **Only verifiable models can earn trust.** The listing form offers a dropdown of the models the auditor can check (one registry in `@tb/config`: MiniMax-M2.7, llama3.2:3b, qwen2.5:0.5b). "Other" is allowed only with an explicit acknowledgement. Such listings carry an *Unverifiable model* warning and no trust score, the agent skips them by default, and they are never slashed.
+- **An audit costs money on both sides.** The auditor pays every probe like a customer (recorded per audit in the log: catching CheapMax costs about $0.07 of probes, against a $5 stake). It also pays for reference inference from hosted models (MiniMax). Reference answers are cached on disk per prompt for 24 h, so a round of audits shares one set of reference calls. In production, slashed stakes in the treasury plus a listing fee would fund auditing.
+
 ## Run it
 
 Requirements: Node 25+, pnpm, Rust with `wasm32v1-none`, stellar-cli 28, Ollama, and a MiniMax API key.
@@ -85,13 +90,15 @@ pnpm agent --try-overspend                  # the budget rejects a $2.00 job
 pnpm demo:reset                             # fresh CheapMax after a slash
 ```
 
-Tests: `pnpm test` (59 TypeScript tests) and `cargo test -p registry` (11 contract tests). The video walkthrough is in [`docs/demo-runbook.md`](docs/demo-runbook.md).
+Tests: `pnpm test` (77 TypeScript tests) and `cargo test -p registry` (11 contract tests). The video walkthrough is in [`docs/demo-runbook.md`](docs/demo-runbook.md).
 
 ## Honest limits
 
 - **The audit is statistical.** It can produce false positives and false negatives. MiniMax answers vary between runs (one of Provider A's probes landed nearest qwen), which is why the score blends several probes and a verdict needs at least 5 of them.
 - **A smart cheater could detect probes**, or forward probes to the real model while serving cheap answers to everyone else. Randomized prompts drawn from a pool, plus probes paid like normal traffic, reduce this but don't remove it.
-- **We can only verify models we can query as a reference.** A listing that claims anything else (e.g. a closed model) is marked *Unverifiable* and is never slashed.
+- **We can only verify models we can query as a reference.** A listing that claims anything else is marked *Unverifiable* and is never slashed. Hosted closed models can be added the same way MiniMax is (query the vendor's official API as the reference), given an API key.
+- **Cached references trade freshness for cost.** A provider whose model changes behaviour is compared against answers up to 24 h old.
+- **The model registry is off-chain** (the contract is frozen for the hackathon). An on-chain, governed registry is future work.
 - **The seed providers are ours**, including the cheater. Providers and auditor references share one local Ollama instance; in production the reference would be hosted independently.
 - **The agent's spending cap is enforced in the agent's code, off-chain.** The on-chain version (an OpenZeppelin smart account with a spending-limit policy) is blocked today by an x402 facilitator bug with policy events ([x402#3352](https://github.com/x402-foundation/x402/issues/3352)). The agent's wallet only holds $0.50, which bounds the worst case.
 - **The facilitator is self-hosted** (in-process, built from the official x402 libraries, with our admin key paying fees) rather than the hosted OpenZeppelin facilitator, which requires an API key.

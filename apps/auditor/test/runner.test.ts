@@ -157,4 +157,10 @@ describe('runAudit', () => {
     expect(runner.status()).toMatchObject({ running: false, current: null });
     expect(runner.status().feed.some((f) => /FAIL/.test(f.line))).toBe(true);
   });
+
+  it('records what the audit spent on paid probes', async () => {
+    const { runner } = setup([listing({})], () => 'qq answer');
+    const [rec] = await runner.runAudit();
+    expect(rec.spentAtomic).toBe(String(6n * 120000n));
+  });
 });

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { ago, txUrl } from '../../lib/types.ts';
 
 type Audit = {
-  id: string; at: string; name: string; claimedModel: string; slashTx?: string; pauseTx?: string;
+  id: string; at: string; name: string; claimedModel: string; slashTx?: string; pauseTx?: string; spentAtomic?: string; slashedAtomic?: string; error?: string;
   verdict: { score: number; matchedModel: string; pass: boolean; inconclusive: boolean };
   probes: { probeId: string; kind: string; status: string; correct?: boolean; closest?: { model: string; similarity: number }; error?: string; txHash?: string }[];
 };
@@ -28,6 +28,13 @@ export default function AuditsPage() {
           <header>
             <b>{a.name}</b> claims <code>{a.claimedModel}</code> · score <b>{a.verdict.score}</b> · matched <code>{a.verdict.matchedModel}</code> ·{' '}
             {a.verdict.inconclusive ? 'INCONCLUSIVE' : a.verdict.pass ? 'PASS' : 'FAIL'} <span className="muted">{ago(a.at, now)}</span>
+            {a.spentAtomic && (
+              <div className="muted">
+                Audit cost ${(Number(a.spentAtomic) / 1e7).toFixed(3)} in paid probes
+                {a.slashedAtomic && <> · stake slashed ${(Number(a.slashedAtomic) / 1e7).toFixed(2)}</>}
+                {a.error && <> · on-chain error: {a.error}</>}
+              </div>
+            )}
           </header>
           <ul>
             {a.probes.map((p, i) => (

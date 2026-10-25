@@ -16,6 +16,8 @@ export type AuditRecord = {
   pauseTx?: string;
   /** set when a slash or delist call failed; the verdict still stands */
   error?: string;
+  /** USDC (atomic) the auditor paid for this audit's probes */
+  spentAtomic?: string;
 };
 
 export const PAY_TIMEOUT_MS = 45_000;
@@ -123,7 +125,8 @@ export function createRunner(deps: Deps) {
       say(l, `${p.id} → ${r.status === 'error' ? 'error ' + r.error : r.kind === 'checkable' ? (r.correct ? 'correct' : 'wrong') : `closest ${r.closest.model} (${r.closest.similarity.toFixed(3)})`}`);
     }
     const verdict = computeVerdict(l.claimedModel, probes, deps.referenceModels);
-    const rec: AuditRecord = { id: `${Date.now()}-${l.provider.slice(0, 6)}`, at: new Date().toISOString(), provider: l.provider, name: l.name, claimedModel: l.claimedModel, verdict, probes };
+    const spent = BigInt(probes.filter((p) => p.status === 'ok' && p.txHash).length) * l.priceAtomic;
+    const rec: AuditRecord = { id: `${Date.now()}-${l.provider.slice(0, 6)}`, at: new Date().toISOString(), provider: l.provider, name: l.name, claimedModel: l.claimedModel, verdict, probes, spentAtomic: String(spent) };
     say(l, `score ${verdict.score} matched ${verdict.matchedModel} → ${verdict.unverifiable ? 'UNVERIFIABLE (no reference for ' + l.claimedModel + ')' : verdict.pass ? 'PASS' : 'FAIL'}`);
     if (!verdict.pass) {
       try {
