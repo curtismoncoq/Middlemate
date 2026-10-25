@@ -137,7 +137,7 @@ export function ListForm({ models }: { models: ModelOption[] }) {
         {field('stakeUsdc', 'Stake (USDC)', '5')}
       </div>
       <button className="btn" disabled={busy}>{busy ? 'Signing…' : w.address ? 'Register & stake' : 'Connect wallet to list'}</button>
-      <p className="muted">{localWeatherDemo ? 'The weather endpoint is a local fixture. Registration and stake are submitted to the Stellar Testnet registry and require wallet approval.' : 'Stake is locked in the registry. The deployed registry has no unstake operation.'}</p>
+      <p className="muted">{localWeatherDemo ? 'The weather endpoint is a local fixture. Registration and stake are submitted to the Stellar Testnet registry and require wallet approval.' : 'Stake is locked in the registry while you are listed. It is refunded when the listing is unregistered, unless it was slashed.'}</p>
       {steps.map((s, i) => (
         <p key={i} className="muted">
           {s.hash ? '✔' : '…'} {s.label} {s.hash && <a href={txUrl(s.hash)} target="_blank" rel="noreferrer">tx {s.hash.slice(0, 6)}…</a>}

@@ -81,7 +81,7 @@ export default function DashboardPage() {
   return <div className="dashboard">
     <header className="dashboard__heading"><div><span className="eyebrow">Personal workspace</span><h1>Your dashboard</h1><p className="muted mono">{wallet.address}</p></div><span className={`badge ${data?.registryMode === 'onchain' ? 'badge--green' : 'badge--amber'}`}>{data?.registryMode === 'onchain' ? 'STELLAR TESTNET · ONCHAIN REGISTRY' : 'OFFCHAIN REGISTRY'}</span></header>
     {error && <p className="empty--error">{error}</p>}
-    {process.env.NEXT_PUBLIC_WEATHER_DEMO === '1' && <div className="demo-notice">Weather demo responses are synthetic local fixtures. Requests to those fixtures use simulated payments and do not appear as earnings or spend. Listings and stake submitted through a wallet use the configured registry mode; activity shown below comes from confirmed USDC transfers on Stellar Testnet.</div>}
+    {process.env.NEXT_PUBLIC_WEATHER_DEMO === '1' && <div className="demo-notice">Weather demo responses are synthetic local fixtures, but requests to them are real USDC payments and appear as earnings and spend. Listings and stake submitted through a wallet use the configured registry mode; activity shown below comes from confirmed USDC transfers on Stellar Testnet.</div>}
 
     <section className="dash-provider">
       <div className="dash-section-head"><div><span className="eyebrow">Provider studio</span><h2>Revenue & operations</h2></div><span className="dash-live"><i/> Refreshes every 30 seconds</span></div>

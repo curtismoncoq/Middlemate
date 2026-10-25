@@ -11,9 +11,6 @@ export function createBrowserPayingFetch(address: string): BrowserPay {
   const client = new x402Client().register('stellar:*', new ExactStellarScheme(signer));
   const paid = wrapFetchWithPayment(fetch, client);
   return async (url, init) => {
-    if (process.env.NEXT_PUBLIC_WEATHER_DEMO === '1' && /^400[3-5]$/.test(new URL(url).port)) {
-      return fetch(url, { ...init, headers: { ...Object.fromEntries(new Headers(init?.headers).entries()), 'X-Simulated-Payment': address } });
-    }
     const res = (await paid(url, init)) as Response & { payment?: { txHash: string } };
     const header = res.headers.get('PAYMENT-RESPONSE') ?? res.headers.get('X-PAYMENT-RESPONSE');
     if (header) {
