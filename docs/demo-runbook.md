@@ -34,7 +34,7 @@ The slash can't be undone without a reset, so record in this order.
 
 ## Motion design
 
-- **M1 Hook:** an agent icon pays a "Claude Opus" label, which peels off to reveal "0.5B model".
+- **M1 Hook:** an agent icon pays a "Claude Opus" label with the Claude logo, which peels off to reveal "0.5B model".
 - **M2 How it works:** four animated steps:
   - **Stake** (Soroban registry)
   - **Pay per request** (x402 · USDC)
