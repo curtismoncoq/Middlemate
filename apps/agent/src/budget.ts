@@ -1,6 +1,6 @@
 export class BudgetExceededError extends Error {}
 
-export const usd = (atomic: bigint) => `$${(Number(atomic) / 1e7).toFixed(2)}`;
+export const usd = (atomic: bigint) => `$${(Number(atomic) / 1e7).toFixed(3).replace(/0$/, "")}`;
 
 /** Off-chain spending cap enforced by the agent before every payment. */
 export class BudgetGuard {

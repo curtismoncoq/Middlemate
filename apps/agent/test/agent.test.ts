@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { BudgetGuard, BudgetExceededError } from '../src/budget.ts';
+import { BudgetGuard, BudgetExceededError, usd } from '../src/budget.ts';
 import { chooseListing } from '../src/choose.ts';
 import { runAgent } from '../src/main.ts';
 import type { Listing } from '@tb/registry-client';
@@ -20,6 +20,12 @@ describe('chooseListing', () => {
   });
   it('returns null when no active listing serves the model', () => {
     expect(chooseListing([B, { ...A, active: false }], 'MiniMax-M2.7', new Set())).toBeNull();
+  });
+});
+
+describe('usd', () => {
+  it('keeps sub-cent precision and two decimals otherwise', () => {
+    expect([usd(120000n), usd(200000n), usd(5000000n), usd(40000n)]).toEqual(['$0.012', '$0.02', '$0.50', '$0.004']);
   });
 });
 
