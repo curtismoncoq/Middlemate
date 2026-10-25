@@ -18,7 +18,6 @@ function MoneyChart({ title, amount, series, tint, unavailable = false }: { titl
   return <section className={`money-chart money-chart--${tint}`}>
     <div className="money-chart__head"><div><span className="eyebrow">Last 7 days · Stellar RPC</span><h2>{title}</h2></div><strong>{unavailable ? '—' : usd(amount)}</strong></div>
     <svg viewBox="0 0 760 230" role="img" aria-label={`${title} over the last 7 days`} className="money-chart__svg">
-      <defs><linearGradient id={`fill-${tint}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="currentColor" stopOpacity=".22"/><stop offset="100%" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs>
       {[40, 90, 140, 190].map((y) => <line key={y} x1="18" x2="742" y1={y} y2={y} className="chart-grid"/>)}
       {hasData && <><path d={area} className="chart-area"/><path d={path} className="chart-line"/><circle cx={points.at(-1)?.split(',')[0]} cy={points.at(-1)?.split(',')[1]} r="4" className="chart-dot"/></>}
       {!hasData && <line x1="18" x2="742" y1="190" y2="190" className="chart-empty-line"/>}
@@ -132,7 +131,7 @@ export default function DashboardPage() {
           const exiting = !!listing.exitAt && !listing.retired;
           const remaining = Math.max(0, Math.ceil((listing.exitAt ?? 0) - now / 1000));
           return <article className="provider-listing" key={key}>
-            <div className="provider-listing__identity"><span className="listing-glyph">{listing.claimedModel.startsWith('api:') ? '⌁' : '✳'}</span><div><b>{listing.name}</b><small>{listing.claimedModel} · {Number(listing.priceAtomic) / 1e7} USDC / request</small><small className="mono">{listing.endpoint}</small>{listing.id && <small className="mono">Listing {listing.id.slice(0, 12)}…</small>}</div></div>
+            <div className="provider-listing__identity"><span className="listing-glyph">{listing.claimedModel.startsWith('api:') ? 'API' : 'LLM'}</span><div><b>{listing.name}</b><small>{listing.claimedModel} · {Number(listing.priceAtomic) / 1e7} USDC / request</small><small className="mono">{listing.endpoint}</small>{listing.id && <small className="mono">Listing {listing.id.slice(0, 12)}…</small>}</div></div>
             <div className="provider-listing__metric"><span>Stake</span><b>{usdc(listing.stakeAtomic)} USDC</b></div>
             <span className={`badge ${listing.active ? 'badge--green' : 'badge--amber'}`}>{listing.retired ? 'REMOVED' : exiting ? remaining > 0 ? `EXIT IN ${remaining}s` : 'READY TO WITHDRAW' : listing.active ? 'ACTIVE' : 'PAUSED'}</span>
             {!listing.retired && listing.provider === wallet.address && <div className="provider-listing__controls">
