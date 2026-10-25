@@ -1,12 +1,29 @@
 import { ago, price, txUrl, usdc, type ApiListing } from '../lib/types.ts';
 import { WeatherFieldMatrix } from './WeatherFieldMatrix.tsx';
 
-type Props = { listing: ApiListing; now: number; onTry?: (l: ApiListing) => void; auditing?: { probe: number; total: number } };
+type Props = { listing: ApiListing; now: number; onTry?: (l: ApiListing) => void; auditing?: { probe: number; total: number }; preview?: boolean };
 
-export function ListingCard({ listing: l, now, onTry, auditing }: Props) {
+/** Score at or above this passes the audit; below it with enough probes, the stake is slashed. */
+export const SLASH_LINE = 60;
+
+/** Trust score 0–100 as a bar, with a tick at the slash line. */
+function TrustMeter({ score, slashed, children }: { score: number; slashed?: boolean; children: React.ReactNode }) {
+  return (
+    <div className={`meter ${slashed ? 'meter--slashed' : ''}`}>
+      <div className="meter__row">{children}</div>
+      <div className="meter__track" role="meter" aria-label="Trust score" aria-valuemin={0} aria-valuemax={100} aria-valuenow={score}>
+        <span className="meter__fill" style={{ width: `${score}%` }} />
+        <span className="meter__line" style={{ left: `${SLASH_LINE}%` }} title={`Slash line: ${SLASH_LINE}`} />
+      </div>
+    </div>
+  );
+}
+
+export function ListingCard({ listing: l, now, onTry, auditing, preview }: Props) {
   const a = l.lastAudit;
   const slashed = !!a && !a.pass && !!a.slashTx;
   const isApi = l.claimedModel.startsWith('api:');
+  const unverifiable = !isApi && (l.verifiable === false || !!a?.unverifiable);
   const underReview = !a && !isApi && l.verifiable !== false && l.active;
 
   if (slashed) {
@@ -14,20 +31,24 @@ export function ListingCard({ listing: l, now, onTry, auditing }: Props) {
       <article className="card card--slashed" aria-label={l.name}>
         <header className="card__head">
           <h3>{l.name}</h3>
-          <span className="badge badge--red">SLASHED · DELISTED</span>
+          <span className="pill pill--alarm">SLASHED · DELISTED</span>
         </header>
         <p className="card__claim">
           Claims <code>{l.claimedModel}</code>
         </p>
-        <p className="card__matched">
-          Actually matched: <code>{a.matchedModel}</code> ({Math.round(a.confidence * 100)}%)
-        </p>
-        <p className="card__price card__price--struck">
-          <span>{price(l.priceAtomic)}</span> / request
-        </p>
-        <footer className="card__meta">
-          <span>🔥 Stake {usdc(a.slashedAtomic ?? '0')} → 0 USDC</span>
-          <span>Trust {a.score}</span>
+        <TrustMeter score={a.score} slashed>
+          <p className="card__matched">
+            Actually matched: <code>{a.matchedModel}</code> ({Math.round(a.confidence * 100)}%)
+          </p>
+        </TrustMeter>
+        <div className="card__money">
+          <p className="card__price card__price--struck">
+            <span>{price(l.priceAtomic)}</span> / request
+          </p>
+          <p className="card__stake card__stake--lost">{`Stake ${usdc(a.slashedAtomic ?? '0')} → 0 USDC`}</p>
+        </div>
+        <footer className="card__foot">
+          <span>{`Trust ${a.score} · below ${SLASH_LINE}`}</span>
           <a href={txUrl(a.slashTx!)} target="_blank" rel="noreferrer">
             slash tx {a.slashTx!.slice(0, 6)}…
           </a>
@@ -36,41 +57,53 @@ export function ListingCard({ listing: l, now, onTry, auditing }: Props) {
     );
   }
 
+  const state = auditing ? (
+    <span className="pill pill--warning">
+      <span className="pulse" aria-hidden="true" />
+      Being audited · probe {auditing.probe}/{auditing.total}
+    </span>
+  ) : isApi ? (
+    <span className="pill" title="Schema declared; semantic audit of API data is future work">API · schema declared</span>
+  ) : unverifiable ? (
+    <span className="pill pill--warning" title="No reference model to compare against">Unverifiable model</span>
+  ) : !a ? (
+    <span className="pill pill--warning">Under review</span>
+  ) : a.pass && !a.inconclusive ? (
+    <span className="pill pill--positive">Passed</span>
+  ) : (
+    <span className="pill pill--warning">Inconclusive</span>
+  );
+
   return (
-    <article className={`card ${auditing ? 'card--auditing' : ''}`} aria-label={l.name}>
-      {auditing && (
-        <div className="auditing">
-          <span className="pulse" /> Being audited · probe {auditing.probe}/{auditing.total}
-        </div>
-      )}
+    <article className={`card ${auditing ? 'card--auditing' : ''} ${preview ? 'card--preview' : ''}`} aria-label={l.name}>
       <header className="card__head">
         <h3>{l.name}</h3>
-        {isApi ? (
-          <span className="badge" title="Schema declared; semantic audit of API data is future work">API · schema declared</span>
-        ) : l.verifiable === false || a?.unverifiable ? (
-          <span className="badge badge--amber" title="No reference model to compare against">⚠ Unverifiable model</span>
-        ) : !a ? (
-          <span className="badge badge--amber">Under review</span>
-        ) : a.unverifiable ? (
-          <span className="badge badge--amber" title="No reference model to compare against">Unverifiable model</span>
-        ) : (
-          <span className={`badge ${a.pass ? 'badge--green' : 'badge--amber'}`}>Trust {a.score}</span>
-        )}
+        {state}
       </header>
       <p className="card__claim">
-        Serves <code>{l.claimedModel}</code>
+        {isApi ? 'Contract' : 'Serves'} <code>{l.claimedModel || '—'}</code>
       </p>
-      {l.claimedModel === 'api:weather@1' && <WeatherFieldMatrix listing={l} />}
-      {!isApi && (l.verifiable === false || a?.unverifiable) && <p className="card__warn">This model can&apos;t be checked by the auditor — buy at your own risk.</p>}
-      <p className="card__price">
-        <span>{price(l.priceAtomic)}</span> / request
-      </p>
-      <footer className="card__meta">
-        <span>🔒 Staked {usdc(l.stakeAtomic)} USDC</span>
-        {a && <span>audited {ago(a.at, now)}</span>}
-      </footer>
-      {underReview && <p className="card__warn">Being checked by the auditor before anyone can buy.</p>}
-      <button className="btn" onClick={() => onTry?.(l)} disabled={!l.active || underReview}>
+
+      {a && !isApi && !unverifiable ? (
+        <TrustMeter score={a.score}>
+          <span className="meter__score">Trust {a.score}</span>
+          <span className="meter__when">audited {ago(a.at, now)}</span>
+        </TrustMeter>
+      ) : underReview ? (
+        <p className="card__note">Being checked by the auditor before anyone can buy.</p>
+      ) : unverifiable ? (
+        <p className="card__note card__note--warn">This model can&apos;t be checked by the auditor — buy at your own risk.</p>
+      ) : null}
+
+      {l.claimedModel === 'api:weather@1' && !preview && <WeatherFieldMatrix listing={l} />}
+
+      <div className="card__money">
+        <p className="card__price">
+          <span>{price(l.priceAtomic)}</span> / request
+        </p>
+        <p className="card__stake">{`Staked ${usdc(l.stakeAtomic)} USDC`}</p>
+      </div>
+      <button className="btn btn--secondary" onClick={() => onTry?.(l)} disabled={!l.active || underReview || preview}>
         {l.claimedModel === 'api:weather@1' ? 'Try weather API' : 'Try it'}
       </button>
     </article>

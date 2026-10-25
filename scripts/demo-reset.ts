@@ -10,6 +10,7 @@ import path from 'node:path';
 import { Asset, Horizon, Keypair, Networks, Operation, TransactionBuilder } from '@stellar/stellar-sdk';
 import { loadConfig, REPO_ROOT, seedListings, endpointFor } from '@tb/config';
 import { createRegistryClient, toAtomic } from '@tb/registry-client';
+import { blockingMessage, resetPlan } from './reset-plan.ts';
 
 const USDC = new Asset('USDC', 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5');
 const cfg = loadConfig();
@@ -33,9 +34,12 @@ async function pay(from: Keypair, to: string, amount: number) {
 }
 
 // 1. clear the registry
-const currentListings = await reg.list();
-if (currentListings.some((l) => l.id && !l.retired)) throw new Error('Exit the new per-listing endpoints from Dashboard before demo:reset. Their owner must confirm refunds.');
-for (const l of currentListings.filter((l) => !l.id)) {
+const plan = resetPlan(await reg.list());
+if (plan.blocking.length) {
+  console.error(blockingMessage(plan.blocking));
+  process.exit(1);
+}
+for (const l of plan.unregister) {
   const r = await reg.unregister(cfg.keys.admin.secret, l.provider);
   console.log(`unregistered ${l.name.padEnd(12)} refunded ${Number(r.refundedAtomic) / 1e7} USDC  ${r.hash}`);
 }

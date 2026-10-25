@@ -22,7 +22,7 @@ it('registers two separately named weather endpoints with one wallet and atomic 
   fireEvent.click(screen.getByRole('button', { name: 'Select all fields' }));
   for (const [name, host] of [['Weather by Mat', 'one'], ['Mat rain', 'two']]) {
     fireEvent.change(screen.getByLabelText('Listing name'), { target: { value: name } });
-    fireEvent.change(screen.getByLabelText('Paid weather endpoint (POST /weather/v1/forecast)'), { target: { value: `https://${host}.example/weather/v1/forecast` } });
+    fireEvent.change(screen.getByLabelText('Endpoint URL'), { target: { value: `https://${host}.example/weather/v1/forecast` } });
     fireEvent.click(screen.getByRole('button', { name: 'Register & stake' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Register & stake' })).toBeTruthy());
   }

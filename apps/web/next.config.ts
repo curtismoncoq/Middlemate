@@ -7,6 +7,7 @@ const config: NextConfig = {
   transpilePackages: ['@tb/config', '@tb/registry-client', '@tb/weather-contract'],
   serverExternalPackages: ['@stellar/stellar-sdk'],
   typescript: { ignoreBuildErrors: false },
+  devIndicators: false, // keep the dev badge out of the demo recording
 };
 
 export default config;

@@ -5,15 +5,15 @@ export function ConnectWallet() {
   const w = useWallet();
   if (w.address) {
     return (
-      <button className="btn btn--ghost mono" onClick={w.disconnect} title="Disconnect">
+      <button className="wallet__btn mono" onClick={w.disconnect} title="Disconnect">
         {w.address.slice(0, 4)}…{w.address.slice(-4)}
       </button>
     );
   }
   return (
     <span className="wallet">
-      <button className="btn btn--ghost" onClick={w.connect} disabled={w.restoring}>{w.restoring ? 'Reconnecting…' : 'Connect wallet'}</button>
-      {w.error && <span className="empty--error muted"> {w.error}</span>}
+      <button className="wallet__btn" onClick={w.connect} disabled={w.restoring}>{w.restoring ? 'Reconnecting…' : 'Connect'}</button>
+      {w.error && <span className="wallet__error">{w.error}</span>}
     </span>
   );
 }

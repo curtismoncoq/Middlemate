@@ -3,7 +3,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWallet } from './WalletContext.tsx';
 import { signTransaction } from '../lib/wallet.ts';
-import { validateListing, type ListingInput } from '../lib/listForm.ts';
+import { draftListing, validateListing, type ListingInput } from '../lib/listForm.ts';
+import { SLASH_LINE } from './ListingCard.tsx';
+import { Stall } from './Stall.tsx';
 import { txUrl } from '../lib/types.ts';
 import { capabilitiesUrl, validateWeatherCapabilities, WEATHER_FIELDS, WEATHER_SCHEMA_ID } from '@tb/weather-contract';
 
@@ -32,12 +34,13 @@ export function ListForm({ models }: { models: ModelOption[] }) {
   const [category, setCategory] = useState<'inference' | 'weather'>('inference');
   const [supportedFields, setSupportedFields] = useState<string[]>(['forecast.temperatureC']);
 
-  const field = (k: Exclude<keyof ListingInput, 'allowUnverifiable'>, label: string, placeholder: string) => (
-    <label className="field">
-      <span>{label}</span>
-      <input value={form[k]} placeholder={placeholder} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
-      {errors[k] && <small className="empty--error">{errors[k]}</small>}
-    </label>
+  const field = (k: Exclude<keyof ListingInput, 'allowUnverifiable'>, label: string, placeholder: string, help?: string) => (
+    <div className="field">
+      <label htmlFor={`field-${k}`}>{label}</label>
+      <input id={`field-${k}`} value={form[k]} placeholder={placeholder} aria-describedby={help ? `${k}-help` : undefined} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
+      {help && <small id={`${k}-help`} className="field__help">{help}</small>}
+      {errors[k] && <small className="field__error">{errors[k]}</small>}
+    </div>
   );
 
   const submit = async (e: React.FormEvent) => {
@@ -82,15 +85,23 @@ export function ListForm({ models }: { models: ModelOption[] }) {
     }
   };
 
+  const verifiable = category === 'inference' && choice !== OTHER;
+  const draft = draftListing(form, verifiable);
+  const stake = Number(form.stakeUsdc) > 0 ? Number(form.stakeUsdc) : 0;
+  const signed = steps[0];
+  const stepState = (s?: Step) => (s?.hash ? 'is-done' : s ? 'is-waiting' : '');
+  const txLink = (s?: Step) => s?.hash && <a href={txUrl(s.hash)} target="_blank" rel="noreferrer">tx {s.hash.slice(0, 6)}…</a>;
+
   return (
+    <div className="listing-layout">
     <form className="listform" onSubmit={submit}>
-      <fieldset className="category-picker">
+      <fieldset className="segmented">
         <legend>What are you listing?</legend>
-        <label><input type="radio" name="category" checked={category === 'inference'} onChange={() => { setCategory('inference'); setForm({ ...form, claimedModel: choice === OTHER ? '' : choice }); }} /> Inference model</label>
-        <label><input type="radio" name="category" checked={category === 'weather'} onChange={() => { setCategory('weather'); setForm({ ...form, claimedModel: WEATHER_SCHEMA_ID }); }} /> Weather API</label>
+        <label><input type="radio" name="category" checked={category === 'inference'} onChange={() => { setCategory('inference'); setForm({ ...form, claimedModel: choice === OTHER ? '' : choice }); }} /> <span>Inference model</span></label>
+        <label><input type="radio" name="category" checked={category === 'weather'} onChange={() => { setCategory('weather'); setForm({ ...form, claimedModel: WEATHER_SCHEMA_ID }); }} /> <span>Weather API</span></label>
       </fieldset>
       {field('name', 'Listing name', 'My Llama endpoint')}
-      {field('endpoint', category === 'weather' ? 'Paid weather endpoint (POST /weather/v1/forecast)' : 'Endpoint URL (OpenAI-compatible chat completions, behind x402)', category === 'weather' ? 'https://…/weather/v1/forecast' : 'https://…/v1/chat/completions')}
+      {field('endpoint', 'Endpoint URL', category === 'weather' ? 'https://…/weather/v1/forecast' : 'https://…/v1/chat/completions', category === 'weather' ? 'POST /weather/v1/forecast, paid over x402.' : 'OpenAI-compatible chat completions, paid over x402.')}
       {category === 'inference' ? (
         <>
       <label className="field">
@@ -109,7 +120,7 @@ export function ListForm({ models }: { models: ModelOption[] }) {
           ))}
           <option value={OTHER}>Other model (unverifiable)…</option>
         </select>
-        {choice !== OTHER && errors.claimedModel && <small className="empty--error">{errors.claimedModel}</small>}
+        {choice !== OTHER && errors.claimedModel && <small className="field__error">{errors.claimedModel}</small>}
       </label>
       {choice === OTHER && (
         <>
@@ -122,12 +133,12 @@ export function ListForm({ models }: { models: ModelOption[] }) {
       )}
         </>
       ) : (
-        <div className="schema-lock">Schema: <code>{WEATHER_SCHEMA_ID}</code> · <a href="/api/schemas/weather/v1" target="_blank" rel="noreferrer">OpenAPI contract</a></div>
+        <p className="schema-lock">Contract <code>{WEATHER_SCHEMA_ID}</code> · <a href="/api/schemas/weather/v1" target="_blank" rel="noreferrer">OpenAPI contract</a></p>
       )}
       {category === 'weather' && <fieldset className="weather-provider-fields">
         <legend>Which data fields does your API provide?</legend>
         <p className="muted">Select fields your endpoint reliably returns. Publish this JSON from public <code>GET /weather/v1/capabilities</code>; the marketplace checks it before registration.</p>
-        <div className="weather-field-actions"><button className="btn btn--ghost" type="button" onClick={() => setSupportedFields(weatherResponseFields.map((f) => f.id))}>Select all fields</button></div>
+        <div className="weather-field-actions"><button className="btn btn--outline" type="button" onClick={() => setSupportedFields(weatherResponseFields.map((f) => f.id))}>Select all fields</button></div>
         {weatherResponseFields.map((f) => <label key={f.id} title={f.description}><input type="checkbox" checked={supportedFields.includes(f.id)} onChange={(e) => setSupportedFields(e.target.checked ? [...supportedFields, f.id] : supportedFields.filter((id) => id !== f.id))} /><span>{f.label}</span>{f.unit && <small>{f.unit}</small>}</label>)}
         <pre className="capability-json">{JSON.stringify({ schema: WEATHER_SCHEMA_ID, availableFields: supportedFields }, null, 2)}</pre>
       </fieldset>}
@@ -135,14 +146,37 @@ export function ListForm({ models }: { models: ModelOption[] }) {
         {field('priceUsd', 'Price per request (USD)', '0.005')}
         {field('stakeUsdc', 'Stake (USDC)', '5')}
       </div>
-      <button className="btn" disabled={busy || w.restoring}>{w.restoring ? 'Reconnecting…' : busy ? 'Signing…' : w.address ? 'Register & stake' : 'Connect wallet to list'}</button>
-      <p className="muted">You can register multiple endpoints with the same wallet. Each has its own name and stake. Registration and stake are confirmed together in your wallet on Stellar Testnet. Use Dashboard to request removal and withdraw after the onchain cooldown.</p>
-      {steps.map((s, i) => (
-        <p key={i} className="muted">
-          {s.hash ? '✔' : '…'} {s.label} {s.hash && <a href={txUrl(s.hash)} target="_blank" rel="noreferrer">tx {s.hash.slice(0, 6)}…</a>}
-        </p>
-      ))}
-      {fail && <p className="empty--error">{fail}</p>}
+      <div className="listform__submit">
+        <button className="btn btn--lime" disabled={busy || w.restoring}>{w.restoring ? 'Reconnecting…' : busy ? 'Signing…' : w.address ? 'Register & stake' : 'Connect wallet to list'}</button>
+        <p className="muted">One wallet signature registers the listing and locks its stake. One wallet can list several endpoints; remove one from Dashboard, then withdraw after the onchain grace period.</p>
+      </div>
+      {fail && <p className="field__error" role="alert">{fail}</p>}
     </form>
+
+    <aside className="listing-rail">
+      <section className="rail-stall">
+        <h2>Your stall on the street</h2>
+        <Stall listing={draft} />
+      </section>
+      <section className="rail-next">
+        <h2>After you submit</h2>
+        <p className="atrisk"><span className="num">{`${stake.toLocaleString('en-US')} USDC`}</span> at stake if your answers don&apos;t match {category === 'weather' ? 'your contract' : 'the model you claim'}.</p>
+        <ol className="track">
+          <li className={stepState(signed)}>
+            <b>{`Register & stake ${stake.toLocaleString('en-US')} USDC`}</b>
+            <span>{signed?.hash ? txLink(signed) : signed ? 'Waiting for your wallet…' : 'One signature in your wallet; the stake is locked in the Soroban registry.'}</span>
+          </li>
+          <li className={signed?.hash ? 'is-waiting' : ''}>
+            <b>Audit on entry</b>
+            <span>{category === 'weather' ? 'API listings show their declared schema; their data audit is future work.' : 'The auditor buys hidden probes at your price and fingerprints the answers. You show as Under review until it finishes.'}</span>
+          </li>
+          <li>
+            <b>{`Trust ${SLASH_LINE} or more: listed`}</b>
+            <span>Below the line, the stake goes to the treasury and the listing is removed.</span>
+          </li>
+        </ol>
+      </section>
+    </aside>
+    </div>
   );
 }
