@@ -1,0 +1,11 @@
+{
+  "name": "@tb/video-hyperframes",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "HYPERFRAMES_NO_TELEMETRY=1 npx --yes hyperframes@0.8.200 preview",
+    "check": "HYPERFRAMES_NO_TELEMETRY=1 npx --yes hyperframes@0.8.200 check",
+    "render": "HYPERFRAMES_NO_TELEMETRY=1 npx --yes hyperframes@0.8.200 render -o out/m1-hook.mp4",
+    "publish": "HYPERFRAMES_NO_TELEMETRY=1 npx --yes hyperframes@0.8.200 publish"
+  }
+}

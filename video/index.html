@@ -1,0 +1,50 @@
+<!doctype html>
+<html
+  lang="en"
+  data-resolution="landscape"
+  data-composition-variables='[
+    {"id":"color-ground","type":"color","label":"Ground","default":"#141414"},
+    {"id":"color-ink","type":"color","label":"Text","default":"#f2f2f2"},
+    {"id":"color-muted","type":"color","label":"Muted text","default":"#a6a6a6"},
+    {"id":"color-well","type":"color","label":"Recessed panel","default":"#1a1a1a"},
+    {"id":"color-accent","type":"color","label":"Accent (lime)","default":"#d6f58e"},
+    {"id":"color-lime-ink","type":"color","label":"Text on light fields","default":"#131313"},
+    {"id":"color-negative","type":"color","label":"Slashed red","default":"#ff6a5c"},
+    {"id":"color-warning","type":"color","label":"Not verified amber","default":"#f3c25b"},
+    {"id":"color-tile-white","type":"color","label":"Tile white","default":"#f3f3f0"},
+    {"id":"color-tile-grey","type":"color","label":"Tile grey","default":"#d2d2d2"}
+  ]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>TrustBazaar · M1 Hook</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      /* The app's palette (docs/design.md); the variables above override these in Studio. */
+      :root {
+        --color-ground: #141414; --color-ink: #f2f2f2; --color-muted: #a6a6a6; --color-well: #1a1a1a;
+        --color-accent: #d6f58e; --color-lime-ink: #131313; --color-negative: #ff6a5c; --color-warning: #f3c25b;
+        --color-tile-white: #f3f3f0; --color-tile-grey: #d2d2d2;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--color-ground); }
+      #root { width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="15" data-width="1920" data-height="1080">
+      <div id="type" data-composition-id="type" data-composition-src="compositions/type.html"
+        data-start="0" data-duration="3" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="stall" data-composition-id="stall" data-composition-src="compositions/stall.html"
+        data-start="3" data-duration="6.5" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="claim" data-composition-id="claim" data-composition-src="compositions/claim.html"
+        data-start="9.5" data-duration="5.5" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,29 @@
+<!-- Scene C (9.5-15.0 s): the claim, word by word from dark to ink, then held dead still. -->
+<template>
+  <style>
+    @font-face { font-family: 'Barlow Condensed'; font-weight: 700; src: url('assets/fonts/BarlowCondensed-700.woff2') format('woff2'); }
+    #root { position: absolute; inset: 0; overflow: hidden; background: var(--color-ground); }
+    #claim-text { position: absolute; left: 110px; top: 250px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; text-transform: uppercase; }
+    #claim-l1 { font-size: 300px; line-height: 0.85; letter-spacing: -0.01em; display: flex; gap: 0.18em; }
+    #claim-l2 { font-size: 120px; line-height: 1; margin-top: 40px; display: flex; gap: 0.22em; }
+    .claim-w { color: #3a3a3a; }
+  </style>
+  <div id="root" data-composition-id="claim" data-width="1920" data-height="1080">
+    <div id="claim-text">
+      <div id="claim-l1"><span id="claim-w1" class="claim-w">Nobody</span><span id="claim-w2" class="claim-w">checks</span></div>
+      <div id="claim-l2"><span id="claim-w3" class="claim-w">what</span><span id="claim-w4" class="claim-w">agents</span><span id="claim-w5" class="claim-w">actually</span><span id="claim-w6" class="claim-w">get.</span></div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const ink = getComputedStyle(document.documentElement).getPropertyValue('--color-ink').trim() || '#f2f2f2';
+    const lime = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#d6f58e';
+    tl.fromTo('#claim-text', { opacity: 0 }, { opacity: 1, duration: 0.01 }, 0);
+    tl.fromTo('#claim-w1', { color: '#3a3a3a' }, { color: ink, duration: 0.18, ease: 'power2.out' }, 0.1);
+    tl.fromTo('#claim-w2', { color: '#3a3a3a' }, { color: lime, duration: 0.18, ease: 'power2.out' }, 0.19);
+    ['#claim-w3', '#claim-w4', '#claim-w5', '#claim-w6'].forEach((sel, i) => {
+      tl.fromTo(sel, { color: '#3a3a3a' }, { color: ink, duration: 0.15, ease: 'power2.out' }, 1.1 + i * 0.085);
+    });
+    window.__timelines['claim'] = tl;
+  </script>
+</template>
