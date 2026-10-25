@@ -19,7 +19,7 @@ export function createApp(opts: AppOpts): Express {
   // Browser buyers (the web app's Try it) call providers cross-origin and must read the x402 headers.
   app.use((req, res, next) => {
     res.setHeader('access-control-allow-origin', '*');
-    res.setHeader('access-control-allow-headers', 'content-type, payment-signature, x-payment, x-simulated-payment');
+    res.setHeader('access-control-allow-headers', 'content-type, payment-signature, x-payment, x-simulated-payment, access-control-expose-headers');
     res.setHeader('access-control-expose-headers', 'payment-required, payment-response, x-payment-response');
     if (req.method === 'OPTIONS') {
       res.setHeader('access-control-allow-methods', 'POST, OPTIONS');

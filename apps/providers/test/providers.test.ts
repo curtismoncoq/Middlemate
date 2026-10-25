@@ -45,6 +45,16 @@ describe('CORS for browser buyers', () => {
     expect(r.headers['access-control-allow-headers']).toMatch(/payment-signature/i);
   });
 
+  it('allows the headers the x402 fetch client sends on the paid retry', async () => {
+    const r = await request(app())
+      .options('/llama-b/v1/chat/completions')
+      .set('Origin', 'http://localhost:3000')
+      .set('Access-Control-Request-Method', 'POST')
+      .set('Access-Control-Request-Headers', 'access-control-expose-headers,content-type,payment-signature');
+    const allowed = r.headers['access-control-allow-headers'].toLowerCase().split(/\s*,\s*/);
+    for (const h of ['access-control-expose-headers', 'content-type', 'payment-signature']) expect(allowed).toContain(h);
+  });
+
   it('exposes the settlement header to the browser', async () => {
     const r = await request(app()).post('/llama-b/v1/chat/completions').set('X-Simulated-Payment', 'GBUYER').send(chat);
     expect(r.headers['access-control-expose-headers']).toMatch(/payment-response/i);
