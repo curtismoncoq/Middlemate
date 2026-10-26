@@ -1,6 +1,6 @@
 # Art direction
 
-TrustBazaar is a **dark street at night**. Every listing is a stall on that street. The page is set in condensed capitals, uses one lime light, and navigates with a stack of colour tiles. The tokens live in `apps/web/app/globals.css` (`:root`); use them by name rather than as raw hex values.
+Middlemate is a **dark street at night**. Every listing is a stall on that street. The page is set in condensed capitals, uses one lime light, and navigates with a stack of colour tiles. The tokens live in `apps/web/app/globals.css` (`:root`); use them by name rather than as raw hex values.
 
 ## Colour
 

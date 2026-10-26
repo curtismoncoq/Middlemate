@@ -1,11 +1,11 @@
-# TrustBazaar
+# Middlemate
 
 Hackathon build (HackMeridian, deadline **12:00 2026-10-26**): a Stellar-testnet marketplace for pay-per-request AI and API endpoints. Providers stake in a Soroban registry; an auditor probes them over x402 and slashes liars. The LLM marketplace is finished and demo-ready. Every change must leave it working.
 
-- **Spec** (what was built and why): `docs/superpowers/specs/2026-10-25-trustbazaar-design.md`
-- **Plan and ledger** for the LLM marketplace: `docs/superpowers/plans/2026-10-25-trustbazaar.md` and `.superpowers/sdd/2026-10-25-trustbazaar/progress.md` (task status plus every `Ruling:`). New work gets its own spec, plan and ledger; leave these ones as the record.
+- **Spec** (what was built and why): `docs/superpowers/specs/2026-10-25-middlemate-design.md`
+- **Plan and ledger** for the LLM marketplace: `docs/superpowers/plans/2026-10-25-middlemate.md` and `.superpowers/sdd/2026-10-25-middlemate/progress.md` (task status plus every `Ruling:`). New work gets its own spec, plan and ledger; leave these ones as the record.
 - **Adding a non-LLM API category** (weather, prices…): read `docs/api-listings.md` before writing code.
-- **Recording the demo:** `docs/demo-runbook.md`.
+- **Recording the demo:** `docs/demo-runbook.md`; its motion pieces (M1–M6) are HyperFrames projects in `video/` (`video/README.md`).
 - **Changing anything visual** in `apps/web`: follow `docs/design.md` (colours, type, radius 0, the stall drawing).
 
 ## Contracts you must keep
@@ -21,6 +21,8 @@ These interfaces are shared by the contract, providers, auditor, agent and web a
 - **README honesty**: every limit of a new feature gets a line in the README's "Honest limits" section.
 
 ## How to work here
+
+- The project was renamed from TrustBazaar to **Middlemate**. Internal identifiers keep the old initials on purpose: `@tb/*` packages, `TB_*` keys in `.env`, the `tb-<role>` Stellar CLI identities, `TRUSTBAZAAR_URL` and the wallet session key. Use Middlemate in anything a person reads.
 
 - Branch from `build` and merge back into `build`.
 - Test-first: write the test, watch it fail, then make it pass. `pnpm test` (vitest), `pnpm typecheck` and `cargo test -p registry` are all green before every commit.

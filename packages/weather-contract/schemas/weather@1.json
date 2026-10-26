@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "TrustBazaar Weather API",
+    "title": "Middlemate Weather API",
     "version": "1",
     "description": "Canonical machine-readable contract for api:weather@1. Providers support a declared subset of response fields; all returned values use metric units."
   },
@@ -20,7 +20,7 @@
           "402": { "description": "x402 payment required." },
           "502": { "description": "Upstream weather source unavailable." }
         },
-        "x-payment": "x402 exact on stellar:testnet; price is listed in the TrustBazaar registry"
+        "x-payment": "x402 exact on stellar:testnet; price is listed in the Middlemate registry"
       }
     },
     "/weather/v1/capabilities": {

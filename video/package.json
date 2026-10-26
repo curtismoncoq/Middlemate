@@ -1,0 +1,10 @@
+{
+  "name": "@tb/video",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "preview": "cd ${PIECE:-m1} && HYPERFRAMES_NO_TELEMETRY=1 npx --yes hyperframes@0.8.200 preview",
+    "check": "for d in m1 m2 m3 m4 m5 m6; do (cd $d && HYPERFRAMES_NO_TELEMETRY=1 npx --yes hyperframes@0.8.200 check) || exit 1; done",
+    "render": "sh render.sh"
+  }
+}

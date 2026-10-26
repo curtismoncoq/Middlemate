@@ -34,6 +34,8 @@ The slash can't be undone without a reset, so record in this order.
 
 ## Motion design
 
+Built in HyperFrames in `video/` (see `video/README.md`); `sh video/render.sh` renders every piece into `video/out/`.
+
 - **M1 Hook:** an agent icon pays a "Claude Opus" label with the Claude logo, which peels off to reveal "0.5B model".
 - **M2 How it works:** four animated steps:
   - **Stake** (Soroban registry)
@@ -50,7 +52,7 @@ The slash can't be undone without a reset, so record in this order.
 | Time | Beat | Footage | Voiceover |
 |------|------|---------|-----------|
 | 0:00–0:15 | Hook | M1 | "AI agents now pay for compute on their own. Nobody checks what they actually get." |
-| 0:15–0:35 | Concept | M2 → R1 | "TrustBazaar: providers stake to list, everyone pays per request over x402, and an auditor checks them in secret." |
+| 0:15–0:35 | Concept | M2 → R1 | "Middlemate: providers stake to list, everyone pays per request over x402, and an auditor checks them in secret." |
 | 0:35–1:00 | Honest provider lists | R2 at 4–8×, M5 on the stake prompt | "To list, you stake. The moment you list, the auditor starts testing you with hidden probes, paid like any customer." |
 | 1:00–1:20 | A human pays | R3, M5 on the tx | "Pay per message from your wallet. No account, no API key." |
 | 1:20–1:55 | **The cheater** | R4 with a speed ramp (on-screen "≈90 s later"), R9 overlay, M3, M4, R5 | "This one claims Claude Opus at a bargain price. Its answers fingerprint as a 0.5B model. It's slashed and delisted on-chain." |

@@ -1,4 +1,4 @@
-# TrustBazaar Implementation Plan
+# Middlemate Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust / soroban-sdk 28.0.0 / OpenZeppelin Stellar Contracts 0.8.0; stellar-cli 28.1.0; Node 25, TypeScript, pnpm, vitest; Express + `@x402/express` `@x402/stellar` `@x402/fetch` `@x402/core` 2.28.0; `@stellar/stellar-sdk`; Ollama; MiniMax API; Next.js + `@creit.tech/stellar-wallets-kit` 2.7.1.
 
-**Spec:** `docs/superpowers/specs/2026-10-25-trustbazaar-design.md`
+**Spec:** `docs/superpowers/specs/2026-10-25-middlemate-design.md`
 
 ## Global Constraints
 

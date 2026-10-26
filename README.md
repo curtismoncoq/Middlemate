@@ -1,4 +1,4 @@
-# TrustBazaar
+# Middlemate
 
 **A marketplace where AI agents and people pay per request for LLM inference on Stellar, and providers who lie about what they serve lose their stake.**
 
@@ -16,7 +16,7 @@ flowchart LR
     H[Human in browser<br/>Freighter via Stellar Wallets Kit]
     A[AI agent<br/>$20 wallet · $0.50 budget]
   end
-  W[TrustBazaar web<br/>catalog · audit log · list form]
+  W[Middlemate web<br/>catalog · audit log · list form]
   R[(Soroban registry<br/>register · stake · slash · pause_listing · unregister)]
   P[Providers<br/>x402 paywalled /v1/chat/completions]
   AU[Auditor<br/>hidden probes · fingerprints]
@@ -32,7 +32,7 @@ flowchart LR
 ```
 
 1. **Providers stake.** To list an endpoint, a provider declares the model it serves and a price, and locks USDC in the registry contract (`register`, `stake`).
-2. **Buyers pay per request.** Humans pay from Freighter in the browser. The agent pays from its own wallet under a $0.50 spending policy, although the wallet holds more. Payments go **directly to the provider** over x402 (Soroban auth-entry signing of a USDC transfer); TrustBazaar is never a middleman.
+2. **Buyers pay per request.** Humans pay from Freighter in the browser. The agent pays from its own wallet under a $0.50 spending policy, although the wallet holds more. Payments go **directly to the provider** over x402 (Soroban auth-entry signing of a USDC transfer); Middlemate is never a middleman.
 3. **The auditor catches liars.** It is a paying customer like any other. It sends randomized hidden probes:
    - *checkable* probes with known answers (multi-step arithmetic, strict formatting, extraction)
    - *fingerprint* probes, whose answers are embedded and compared with answers from reference models we can query (MiniMax-M2.7 via API, `llama3.2:3b` and `qwen2.5:0.5b` via Ollama)

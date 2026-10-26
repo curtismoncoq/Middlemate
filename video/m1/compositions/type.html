@@ -1,0 +1,50 @@
+<!-- Scene A (0.0-3.0 s): AGENTS / PAY / FOR / COMPUTE cut on the beat over the app's tile colours, then ON THEIR OWN. -->
+<template>
+  <style>
+    @font-face { font-family: 'Barlow Condensed'; font-weight: 700; src: url('assets/fonts/BarlowCondensed-700.woff2') format('woff2'); }
+    #root { position: absolute; inset: 0; overflow: hidden; background: var(--color-ground); }
+    #type-whip { position: absolute; inset: 0; }
+    .type-field { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+    .type-word { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; text-transform: uppercase; line-height: 0.82; letter-spacing: -0.01em; }
+    #type-f1 { background: var(--color-tile-white); color: var(--color-lime-ink); }
+    #type-f2 { background: var(--color-accent); color: var(--color-lime-ink); }
+    #type-f3 { background: var(--color-tile-grey); color: var(--color-lime-ink); }
+    #type-f4 { background: var(--color-ground); color: var(--color-ink); flex-direction: column; }
+    #type-w1 { font-size: 560px; }
+    #type-w2, #type-w3 { font-size: 640px; }
+    #type-w4 { font-size: 500px; }
+    #type-own { display: flex; gap: 0.22em; font-size: 210px; margin-top: 30px; }
+  </style>
+  <div id="root" data-composition-id="type" data-width="1920" data-height="1080">
+    <div id="type-whip">
+      <div id="type-f1" class="type-field clip" data-start="0" data-duration="0.5"><span id="type-w1" class="type-word">Agents</span></div>
+      <div id="type-f2" class="type-field clip" data-start="0.5" data-duration="0.5"><span id="type-w2" class="type-word">Pay</span></div>
+      <div id="type-f3" class="type-field clip" data-start="1" data-duration="0.5"><span id="type-w3" class="type-word">For</span></div>
+      <div id="type-f4" class="type-field clip" data-start="1.5" data-duration="1.5" data-layout-allow-overflow>
+        <span id="type-w4" class="type-word">Compute</span>
+        <div id="type-own" class="type-word">
+          <span id="type-o1">On</span><span id="type-o2">their</span><span id="type-o3">own.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // Each hard cut lands a word slightly large and blurred; it settles on a long tail, then holds dead still.
+    const land = (sel, at) => tl.fromTo(sel, { scale: 1.08, filter: 'blur(10px)' }, { scale: 1, filter: 'blur(0px)', duration: 0.3, ease: 'expo.out' }, at);
+    // Frame 0 is the thumbnail: AGENTS is already sharp, it only settles.
+    tl.fromTo('#type-w1', { scale: 1.04 }, { scale: 1, duration: 0.3, ease: 'expo.out' }, 0);
+    land('#type-w2', 0.5);
+    land('#type-w3', 1.0);
+    land('#type-w4', 1.5);
+    tl.fromTo('#type-own', { opacity: 0 }, { opacity: 1, duration: 0.01 }, 2.1);
+    // Beat 4 (2.0 s): COMPUTE gives way upward and the line under it arrives word by word.
+    tl.fromTo('#type-w4', { scale: 1, y: 0 }, { scale: 0.5, y: -40, duration: 0.45, ease: 'expo.out' }, 2.0);
+    ['#type-o1', '#type-o2', '#type-o3'].forEach((sel, i) => {
+      tl.fromTo(sel, { opacity: 0, filter: 'blur(8px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.13, ease: 'power4.out' }, 2.12 + i * 0.067);
+    });
+    // Whip left into the street (accelerates out, blur at its fastest frame).
+    tl.fromTo('#type-whip', { x: 0, filter: 'blur(0px)' }, { x: -1920, filter: 'blur(18px)', duration: 0.25, ease: 'power3.in' }, 2.75);
+    window.__timelines['type'] = tl;
+  </script>
+</template>

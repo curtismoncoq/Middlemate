@@ -1,5 +1,5 @@
 #![no_std]
-//! TrustBazaar registry: providers register an endpoint and stake a token;
+//! Middlemate registry: providers register an endpoint and stake a token;
 //! the auditor role can slash a provider's full stake to the treasury and
 //! delist it. Admin can pause the whole registry (OZ Pausable).
 

@@ -1,4 +1,4 @@
-# TrustBazaar — Design
+# Middlemate — Design
 
 Date: 2026-10-25 · Event: HackMeridian 2026 (Lisbon), Genesis path, sub-tracks Stellar Composed (+ Stellar Unlocked)
 Deadline: **12:00 Monday 2026-10-26, no late submissions.** Team: 2 devs, no Rust/Soroban experience; Claude writes most code, including all Rust.
@@ -7,7 +7,7 @@ Deadline: **12:00 Monday 2026-10-26, no late submissions.** Team: 2 devs, no Rus
 
 Paid AI endpoints are appearing, and x402 lets anyone sell them with no accounts or API keys. Buyers — increasingly autonomous agents — can't tell whether a provider serves what it advertises (e.g. advertises a big model, serves a tiny one, pockets the difference). Catalogs list services; nobody verifies them.
 
-TrustBazaar is a **marketplace** for pay-per-request LLM endpoints on Stellar where **providers stake to list, an auditor secretly probes them, and liars are slashed on-chain and delisted**. The marketplace is the product; the auditor is why buyers trust it.
+Middlemate is a **marketplace** for pay-per-request LLM endpoints on Stellar where **providers stake to list, an auditor secretly probes them, and liars are slashed on-chain and delisted**. The marketplace is the product; the auditor is why buyers trust it.
 
 Closing line for the pitch: *"Agents can pay for compute, and compute has to prove it's honest."*
 
@@ -52,7 +52,7 @@ Prices are tuned so the agent's "cheapest MiniMax" rule picks CheapMax first and
 
 ## 5. Architecture
 
-Buyers pay providers **directly** over x402 (my call): TrustBazaar is catalog + on-chain registry + auditor, not a payment middleman. "Routing" = the agent checks `is_active` and moves to the next listing.
+Buyers pay providers **directly** over x402 (my call): Middlemate is catalog + on-chain registry + auditor, not a payment middleman. "Routing" = the agent checks `is_active` and moves to the next listing.
 
 ```
 web (Next.js) ──reads──▶ registry module ──▶ Soroban registry (testnet)  [or off-chain JSON fallback]

@@ -9,7 +9,7 @@ const display = Barlow_Condensed({ subsets: ['latin'], weight: ['600', '700'], v
 const mono = Geist_Mono({ subsets: ['latin'], weight: ['400', '500'], variable: '--font-mono' });
 
 export const metadata: Metadata = {
-  title: 'TrustBazaar',
+  title: 'Middlemate',
   description: 'Pay-per-request AI endpoints on Stellar, where providers stake and liars get slashed.',
 };
 
