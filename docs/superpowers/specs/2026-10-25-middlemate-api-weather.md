@@ -1,4 +1,4 @@
-# TrustBazaar API Marketplace — Weather v1
+# Middlemate API Marketplace — Weather v1
 
 Date: 2026-10-25
 Branch: `feat/api-providers-marketplace`
@@ -6,7 +6,7 @@ Status: Design in progress; weather reference coverage is awaiting a product dec
 
 ## Goal
 
-Add a weather API category to TrustBazaar so providers can list a weather endpoint, stake through the existing registry, sell requests over x402, and disclose exactly which standardized weather fields they provide. Human buyers see an understandable capability matrix; agents can discover the same contract and capability data programmatically.
+Add a weather API category to Middlemate so providers can list a weather endpoint, stake through the existing registry, sell requests over x402, and disclose exactly which standardized weather fields they provide. Human buyers see an understandable capability matrix; agents can discover the same contract and capability data programmatically.
 
 Keep the existing LLM marketplace and demo listings working unchanged. Keep the deployed registry ABI frozen.
 

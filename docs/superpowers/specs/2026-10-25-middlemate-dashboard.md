@@ -1,4 +1,4 @@
-# TrustBazaar user dashboard
+# Middlemate user dashboard
 
 ## Goal
 

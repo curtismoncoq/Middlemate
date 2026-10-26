@@ -103,7 +103,7 @@ export default function DashboardPage() {
   };
 
   if (wallet.restoring) return <p className="empty">Restoring wallet connection…</p>;
-  if (!wallet.address) return <section className="dashboard-empty"><span className="dash-orb">◆</span><h1>Your TrustBazaar dashboard</h1><p>Connect a Stellar wallet to see your provider earnings, stake, purchases, and activity in one place.</p><button className="btn" onClick={wallet.connect}>Connect wallet</button></section>;
+  if (!wallet.address) return <section className="dashboard-empty"><span className="dash-orb">◆</span><h1>Your Middlemate dashboard</h1><p>Connect a Stellar wallet to see your provider earnings, stake, purchases, and activity in one place.</p><button className="btn" onClick={wallet.connect}>Connect wallet</button></section>;
   if (!data) return error
     ? <section className="dashboard-empty"><h1>Your dashboard</h1><p className="empty--error">{error}</p><button className="btn" onClick={load}>Retry connection</button></section>
     : <p className="empty">Loading your dashboard…</p>;
