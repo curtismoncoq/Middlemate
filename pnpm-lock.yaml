@@ -11,6 +11,9 @@ importers:
       '@stellar/stellar-sdk':
         specifier: 16.4.1
         version: 16.4.1
+      '@tb/community':
+        specifier: workspace:*
+        version: link:packages/community
       '@tb/config':
         specifier: workspace:*
         version: link:packages/config
@@ -21,6 +24,9 @@ importers:
         specifier: workspace:*
         version: link:packages/x402-client
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.5.11
+        version: 0.5.11
       '@types/node':
         specifier: ^24.0.0
         version: 24.19.2
@@ -36,6 +42,9 @@ importers:
 
   apps/agent:
     dependencies:
+      '@tb/community':
+        specifier: workspace:*
+        version: link:../../packages/community
       '@tb/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -51,6 +60,9 @@ importers:
 
   apps/auditor:
     dependencies:
+      '@tb/community':
+        specifier: workspace:*
+        version: link:../../packages/community
       '@tb/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -60,6 +72,9 @@ importers:
       '@tb/registry-client':
         specifier: workspace:*
         version: link:../../packages/registry-client
+      '@tb/weather-contract':
+        specifier: workspace:*
+        version: link:../../packages/weather-contract
       '@tb/x402-client':
         specifier: workspace:*
         version: link:../../packages/x402-client
@@ -79,6 +94,9 @@ importers:
       '@tb/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@tb/registry-client':
+        specifier: workspace:*
+        version: link:../../packages/registry-client
       '@tb/weather-contract':
         specifier: workspace:*
         version: link:../../packages/weather-contract
@@ -113,6 +131,9 @@ importers:
       '@stellar/stellar-sdk':
         specifier: 16.4.1
         version: 16.4.1
+      '@tb/community':
+        specifier: workspace:*
+        version: link:../../packages/community
       '@tb/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -157,6 +178,24 @@ importers:
         specifier: ^26.1.0
         version: 26.1.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
 
+  packages/community:
+    dependencies:
+      '@stellar/stellar-sdk':
+        specifier: 16.4.1
+        version: 16.4.1
+      '@tb/config':
+        specifier: workspace:*
+        version: link:../config
+      '@tb/registry-client':
+        specifier: workspace:*
+        version: link:../registry-client
+      '@tb/weather-contract':
+        specifier: workspace:*
+        version: link:../weather-contract
+      '@tb/x402-client':
+        specifier: workspace:*
+        version: link:../x402-client
+
   packages/config:
     dependencies:
       dotenv:
@@ -171,6 +210,8 @@ importers:
       '@tb/config':
         specifier: workspace:*
         version: link:../config
+
+  packages/weather-contract: {}
 
   packages/x402-client:
     dependencies:
@@ -189,8 +230,6 @@ importers:
       '@x402/stellar':
         specifier: 2.28.0
         version: 2.28.0
-
-  packages/weather-contract: {}
 
 packages:
 
@@ -275,6 +314,9 @@ packages:
   '@csstools/css-tokenizer@3.0.4':
     resolution: {integrity: sha512-Vd/9EVDiu6PPJt9yAh6roZP6El1xHrdvIVGjyBsHR0RYwNHgL7FJPyIIW4fANJNG6FtyZfvlRPpFI4ZM/lubvw==}
     engines: {node: '>=18'}
+
+  '@electric-sql/pglite@0.5.11':
+    resolution: {integrity: sha512-SWuqsTjA4DDWqgZ05PC1RJaq8e00p5KACxbqaikDFQ8dIGA0SLRzuPniky7IW+q/c5RDNMdEXwv7mFBWIx9Hxw==}
 
   '@emnapi/runtime@1.11.3':
     resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
@@ -3571,6 +3613,8 @@ snapshots:
       '@csstools/css-tokenizer': 3.0.4
 
   '@csstools/css-tokenizer@3.0.4': {}
+
+  '@electric-sql/pglite@0.5.11': {}
 
   '@emnapi/runtime@1.11.3':
     dependencies:

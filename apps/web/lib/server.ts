@@ -2,6 +2,7 @@ import 'server-only';
 import { isVerifiable, loadConfig, verifiableModels } from '@tb/config';
 import { createRegistryClient } from '@tb/registry-client';
 import { IDLE_AUDIT, type ApiListing, type AuditStatus, type AuditSummary } from './types.ts';
+import { createCommunityStore } from '@tb/community';
 
 const cfg = loadConfig();
 const registry = createRegistryClient(cfg);
@@ -14,6 +15,8 @@ type RawAudit = AuditSummary & { listingId?: string; provider: string; name: str
 
 export async function fetchAudits(): Promise<RawAudit[]> {
   try {
+    const db = createCommunityStore(cfg);
+    if (db) return (await db.all<{body:RawAudit}>('community_audits', {order:'at.desc'})).map(row=>row.body);
     const r = await fetch(`${AUDITOR_URL}/audits`, { cache: 'no-store', signal: AbortSignal.timeout(3000) });
     return r.ok ? ((await r.json()) as RawAudit[]) : [];
   } catch {
@@ -30,7 +33,7 @@ export async function listingsWithAudits(): Promise<ApiListing[]> {
   const [listings, audits] = await Promise.all([registry.list(), fetchAudits()]);
   return listings.map((l) => {
     const last = audits.find((a) => l.id ? a.listingId === l.id : !a.listingId && a.provider === l.provider); // audits are newest first
-    return { ...l, priceAtomic: String(l.priceAtomic), stakeAtomic: String(l.stakeAtomic), verifiable: isVerifiable(l.claimedModel, MODELS), lastAudit: last ? summarize(last) : undefined };
+    return { ...l, priceAtomic: String(l.priceAtomic), stakeAtomic: String(l.stakeAtomic), communityEnabled: !!cfg.supabaseUrl && !!cfg.supabaseSecretKey, verifiable: isVerifiable(l.claimedModel, MODELS), lastAudit: last ? summarize(last) : undefined };
   });
 }
 

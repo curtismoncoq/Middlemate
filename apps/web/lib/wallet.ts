@@ -57,3 +57,10 @@ export async function signTransaction(xdr: string, address: string): Promise<str
   const { signedTxXdr } = await (await kit()).signTransaction(xdr, { networkPassphrase: TESTNET, address });
   return signedTxXdr;
 }
+
+/** SEP-53 ownership proof; this never submits a transaction. */
+export async function signMessage(message: string, address: string): Promise<string> {
+  const signed = await (await kit()).signMessage(message, { address, networkPassphrase: TESTNET });
+  if (signed.signerAddress && signed.signerAddress !== address) throw new Error('Wallet changed while signing. Reconnect and try again.');
+  return signed.signedMessage;
+}

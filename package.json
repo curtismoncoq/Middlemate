@@ -7,6 +7,8 @@
     "deploy:listings": "tsx scripts/deploy-listing-registry.ts",
     "test": "vitest run",
     "check-env": "tsx scripts/check-env.ts",
+    "community:check": "tsx scripts/community.ts check",
+    "community:import-audits": "tsx scripts/community.ts import-audits",
     "typecheck": "tsc -p tsconfig.json",
     "dev": "scripts/dev.sh",
     "agent": "cd apps/agent && tsx src/main.ts",
@@ -17,15 +19,17 @@
     "calibrate": "tsx scripts/calibrate-references.ts"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
     "@types/node": "^24.0.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"
   },
   "dependencies": {
+    "@stellar/stellar-sdk": "16.4.1",
     "@tb/config": "workspace:*",
-    "@tb/x402-client": "workspace:*",
+    "@tb/community": "workspace:*",
     "@tb/registry-client": "workspace:*",
-    "@stellar/stellar-sdk": "16.4.1"
+    "@tb/x402-client": "workspace:*"
   }
 }

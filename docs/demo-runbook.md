@@ -4,7 +4,7 @@ The story is that an honest provider and a cheater both list live, and the audit
 
 ## Before recording
 
-1. `pnpm demo:weather` (the same as `pnpm dev`, plus the three weather fixtures on :4003–4005). It starts the web app (:3000), providers (:4001) and auditor (:4002).
+1. `pnpm demo:weather` (the same as `pnpm dev`, plus four weather fixtures on :4003–4006). It starts the web app (:3000), providers (:4001), auditor (:4002) and live MET Norway-backed demos.
 2. `pnpm demo:reset` in a second terminal. It warms every Ollama model (kept loaded 30 min, so nothing cold-starts on camera), unregisters legacy listings (stakes refunded), seeds Provider A, audits it once (about a minute), and resets the agent's $0.50 budget and the audit log. The catalog opens on one green, audited card. Listings made from `/list` can only be removed by their owner: if one is still listed (Honest Llama), reset stops and names it with its wallet; remove it from Dashboard in that Freighter account (the 10 s grace is enough) and run reset again. A slashed CheapClaude doesn't block reset.
 3. If you record more than 30 min after the reset, warm Ollama again: `ollama run llama3.2:3b "hi"` and `ollama run qwen2.5:0.5b "hi"`.
 4. Freighter on **Testnet** with two accounts, each holding USDC (stake plus a little for Try it):
@@ -27,7 +27,7 @@ The slash can't be undone without a reset, so record in this order.
 | R4 | Cheater listing (switch Freighter to wallet 2) | `/list`, name `CheapClaude`, endpoint `http://localhost:4001/cheapmax/v1/chat/completions` (secretly qwen2.5:0.5b; its price, $0.012, is read from the endpoint), model `Claude Opus 5.5`, stake 5. Audit runs; the card turns red: **SLASHED · matched qwen2.5:0.5b** (red for 60 s) | 2–3 min |
 | R5 | Slash proof | Click the slash tx link and show the registry contract on stellar.expert | 15 s |
 | R6 | Agent terminal | `pnpm agent`: $0.50 budget, picks **Provider A** (the MiniMax listing), prints the tx. Then `pnpm agent --try-overspend`: **REJECTED: payment … exceeds remaining budget** | 40 s |
-| R7 | Weather API | List `http://localhost:4003/weather/v1/forecast` (Weather API in `/list`), then Try it; paid JSON response | 20 s |
+| R7 | Weather API | Follow the MET Norway verification walkthrough below; show an exact pass, a warning, and extras marked unverified | 1–2 min |
 | R8 | Dashboard | `/dashboard`: earnings and spend | 10 s |
 | R9 | B-roll: auditor logs | The `pnpm demo:weather` terminal streaming probe lines during R4 (`closest qwen2.5:0.5b (1.000)`). Record it at the same time as R4 | — |
 | R10 | B-roll: code | `slash` with `#[only_role(caller, "auditor")]` in `contracts/registry/src/lib.rs`, and `computeVerdict` in `apps/auditor/src/scoring.ts` | 15 s |
@@ -71,3 +71,34 @@ Built in HyperFrames in `video/` (see `video/README.md`); `sh video/render.sh` r
 ## Multiple endpoints with one wallet
 
 Set `LISTING_REGISTRY_CONTRACT_ID` to the deployed public address in `.env.example`, then restart `pnpm demo:weather`. Register two weather endpoints using the same wallet; each gets its own ID, name and stake. Dashboard → Rename changes the selected listing only. Remove & unstake starts the 10-second onchain grace; after expiry confirm Withdraw to recover remaining stake. Legacy entries keep their immediate unregister refund. Both registry instances are read together; existing stakes are preserved.
+
+## MET Norway weather verification walkthrough
+
+Run `pnpm demo:weather` in a terminal. Keep it running while testing. This starts four local, unlisted demo endpoints; none appears in Catalog until a person submits it from `/list`. Shared community data is configured through [the Supabase guide](supabase-setup.md). Use a dedicated namespace for demos; `pnpm demo:reset` still changes legacy onchain listings and cannot clear shared audits.
+
+In the browser open `http://localhost:3000/list`, connect a funded Stellar Testnet wallet, select **Weather API**, and register these endpoints. Each registration requires a separate wallet confirmation and stakes the configured amount (default 5 USDC per listing). The auditor also needs testnet USDC for its paid probes.
+
+| Endpoint | Suggested listing name | Select these response fields | Expected audit |
+|---|---|---|---|
+| `http://localhost:4003/weather/v1/forecast` | `MET Exact Demo` | Resolved latitude, Resolved longitude, Forecast time, Source update time, Air temperature, Apparent temperature, Relative humidity, Wind speed, Wind direction, Total cloud cover, Sea-level pressure | Pass |
+| `http://localhost:4004/weather/v1/forecast` | `NearCast Demo` | Resolved latitude, Resolved longitude, Forecast time, Air temperature, Apparent temperature, Relative humidity, Wind speed | Pass within tolerance |
+| `http://localhost:4005/weather/v1/forecast` | `False Front Demo` | Resolved latitude, Resolved longitude, Forecast time, Air temperature, Relative humidity, Precipitation next hour, Wind speed, Total cloud cover, Sea-level pressure | Low concordance; review case when Supabase is configured |
+| `http://localhost:4006/weather/v1/forecast` | `MET Plus Demo` | Same 11 fields as `MET Exact Demo`; add `pollenRisk` and `outdoorRecommendation` under extra fields | Pass; extras remain unverified |
+
+The `4003` endpoint relays MET Norway values. `4004` shifts several values by amounts inside the documented tolerances. `4005` changes values well beyond tolerance. `4006` relays the same values as `4003` and supplies two extra fields. The tests use five fixed places/horizons. Only the provider's declared canonical fields are compared; the free-form extras never affect the score. In `/dashboard`, open **Trust & audits** and **View MET Norway evidence** to see each provider/reference value, delta and tolerance, with MET Norway linked as the reference.
+
+With the current grading, exact matches score 100, NearCast passes with a lower grade (typically around 94), and False Front scores below the passing grade of 80. Each field loses points according to the size of its error, even inside tolerance. Impossible values such as humidity above 100% score 0 for that field. NearCast clamps its deliberately increased humidity to 100%, while the dishonest fixture remains intentionally incorrect. Old audit results retain their previous grade and are identified as historical grading; rerun the selected listing after restarting the demo to get a new grade.
+
+The newly listed endpoint is audited automatically. Leave the listing price at `0.005 USDC` per request: a five-probe audit costs about `0.025 USDC` from the auditor wallet, plus normal Stellar testnet transaction fees. The shared demo host looks up the listing ID sent by the browser/agent/auditor and charges that listing's price to its registered owner. Without a listing ID, a single active registration for that endpoint is selected; several registrations require the header. MET Norway is fetched before each paid request, so an upstream failure does not charge a probe. If a probe fails or cannot be compared, it is excluded; fewer than five valid probes makes the round inconclusive, without warning or slashing.
+
+After restarting `pnpm demo:weather` to load a payout-routing update, make one new paid browser request from a buyer wallet. The buyer dashboard should show `0.005 USDC` spent and the registered provider wallet should show `0.005 USDC` earned after ledger confirmation and the next dashboard refresh. Existing listings do not need to be recreated. Old calls paid to fixture wallets appear as **Weather demo host (legacy payout)** in the buyer history; they did not credit the listing owner's wallet. Ordinary wallet funding transfers are excluded from both totals.
+
+To refresh a selected weather comparison, get its `listingId` from `http://localhost:4002/audits` and request a targeted round:
+
+```sh
+curl -X POST http://localhost:4002/audit/run \
+  -H 'content-type: application/json' \
+  -d '{"provider":"LISTING_ID"}'
+```
+
+The request returns immediately with `{"started":true}`. Weather disagreement and votes do not automatically slash. A failed comparable audit may open one shared review case; follow the provider response and independent moderator walkthrough in [the Supabase guide](supabase-setup.md) to test an explicit warning, pause or slash. The homepage **Run audit now** button audits every active listing and spends the auditor's USDC on each one.

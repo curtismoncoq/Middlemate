@@ -8,7 +8,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('runWeatherRequest payment', () => {
   it('pays capped at the registered price with a timeout', async () => {
-    const fields = ['location.name', 'forecast.validAt', 'forecast.temperatureC'];
+    const fields = ['location.latitude', 'forecast.validAt', 'forecast.temperatureC'];
     vi.stubGlobal('fetch', vi.fn(async (url: string) =>
       String(url).includes('/api/schemas/')
         ? new Response(JSON.stringify({ openapi: '3.1.0', info: { version: '1' }, paths: { '/weather/v1/forecast': {} } }))
@@ -26,5 +26,6 @@ describe('runWeatherRequest payment', () => {
     const [, init, opts] = pay.mock.calls[0] as unknown as [string, RequestInit, { maxAmountAtomic: bigint }];
     expect(opts?.maxAmountAtomic).toBe(100000n);
     expect(init.signal).toBeDefined();
+    expect(new Headers(init.headers).get('x-tb-listing-id')).toBe('GW');
   });
 });

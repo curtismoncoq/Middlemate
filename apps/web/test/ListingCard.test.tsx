@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { ListingCard } from '../components/ListingCard.tsx';
 import { Catalog } from '../components/Catalog.tsx';
 import type { ApiListing } from '../lib/types.ts';
 
-afterEach(cleanup);
+afterEach(()=>{cleanup();vi.restoreAllMocks();});
 
 const base: ApiListing = {
   provider: 'GCHEAT', name: 'CheapMax', endpoint: 'http://localhost:4001/cheapmax/v1/chat/completions',
@@ -85,4 +85,11 @@ describe('Catalog states', () => {
     rerender(<Catalog state={{ status: 'ok', listings: [slashed] }} now={Date.parse('2026-10-25T15:01:05Z')} />);
     expect(screen.queryByText('CheapMax')).toBeNull();
   });
+});
+
+it('does not load community reputation for inference cards',()=>{
+ const fetch=vi.spyOn(globalThis,'fetch');
+ render(<ListingCard listing={{...base,communityEnabled:true}} now={Date.now()}/>);
+ expect(fetch).not.toHaveBeenCalled();
+ expect(screen.queryByLabelText('User reputation and observed reliability')).toBeNull();
 });

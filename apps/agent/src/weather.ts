@@ -1,6 +1,6 @@
 import { listingKey, isListingActive, type Listing, type RegistryClient, type EndpointRegistryMethods } from '@tb/registry-client';
 import type { PayingFetch } from '@tb/x402-client';
-import { capabilitiesUrl, validateWeatherCapabilities, WEATHER_SCHEMA_ID } from '@tb/weather-contract';
+import { capabilitiesUrl, validateWeatherCapabilities, WEATHER_SCHEMA_ID, WEATHER_LISTING_HEADER } from '@tb/weather-contract';
 import { BudgetGuard, usd } from './budget.ts';
 
 export type WeatherRequest = { latitude: number; longitude: number; forecastHours?: number };
@@ -46,7 +46,7 @@ export async function runWeatherRequest(deps: WeatherDeps, request: WeatherReque
       const response = await deps.pay(
         listing.endpoint,
         {
-          method: 'POST', headers: { 'content-type': 'application/json' },
+          method: 'POST', headers: { 'content-type': 'application/json', [WEATHER_LISTING_HEADER]: listingKey(listing) },
           body: JSON.stringify({ latitude: request.latitude, longitude: request.longitude, forecastHours }),
           signal: AbortSignal.timeout(45_000),
         },
@@ -54,10 +54,10 @@ export async function runWeatherRequest(deps: WeatherDeps, request: WeatherReque
       );
       if (response.ok || response.payment?.txHash) deps.guard.record(listing.priceAtomic);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const result = await response.json() as { schema?: string; availableFields?: string[]; forecast?: unknown; location?: unknown };
+      const result = await response.json() as { schema?: string; availableFields?: string[]; extraFields?: string[]; forecast?: unknown; location?: unknown };
       if (result.schema !== WEATHER_SCHEMA_ID || !result.forecast || !result.location || !Array.isArray(result.availableFields)) throw new Error('provider response does not match api:weather@1');
-      const returned = validateWeatherCapabilities({ schema: result.schema, availableFields: result.availableFields });
-      if ([...returned.availableFields].sort().join('|') !== [...capabilities.availableFields].sort().join('|')) throw new Error('response capability declaration changed');
+      const returned = validateWeatherCapabilities({ schema: result.schema, availableFields: result.availableFields, extraFields: result.extraFields });
+      if ([...returned.availableFields].sort().join('|') !== [...capabilities.availableFields].sort().join('|') || [...(returned.extraFields ?? [])].sort().join('|') !== [...(capabilities.extraFields ?? [])].sort().join('|')) throw new Error('response capability declaration changed');
       deps.log(`[agent] paid ${usd(listing.priceAtomic)} → ${listing.name} · tx ${response.payment?.txHash ?? '?'}`);
       deps.log(JSON.stringify(result, null, 2));
       return { paidTo: listing.name, result, txHash: response.payment?.txHash };

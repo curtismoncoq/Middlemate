@@ -46,3 +46,12 @@ describe('TryItPanel', () => {
     await waitFor(() => expect(screen.getByText(/Payment failed: HTTP 402/)).toBeTruthy());
   });
 });
+
+it('keeps inference responses free of social feedback even when a receipt exists',async()=>{
+ const pay=async()=>{const response=await ok();response.headers.set('x-tb-call-id','confirmed-call');return response;};
+ render(<TryItPanel listing={{...listing,communityEnabled:true}} pay={pay} onClose={()=>{}}/>);
+ send('Hello');
+ await waitFor(()=>expect(screen.getByText('Stellar is a payments network.')).toBeTruthy());
+ expect(screen.queryByRole('button',{name:'Give a verified review'})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Report a problem'})).toBeNull();
+});

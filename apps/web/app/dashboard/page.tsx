@@ -3,9 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWallet } from '../../components/WalletContext.tsx';
 import { signTransaction } from '../../lib/wallet.ts';
 import { txUrl, usdc, type ApiListing } from '../../lib/types.ts';
-import type { DashboardEvent, DashboardSnapshot } from '../../lib/dashboard.ts';
+import type { DashboardAudit, DashboardEvent, DashboardSnapshot } from '../../lib/dashboard.ts';
+import { CommunityWorkspace } from '../../components/CommunityWorkspace.tsx';
 
-const usd = (amount: string) => `$${usdc(amount).toFixed(2)}`;
+const usd = (amount: string) => usdc(amount).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 4 });
 const shortDate = (date: string) => new Date(`${date.slice(0, 10)}T12:00:00Z`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
 function MoneyChart({ title, amount, series, tint, unavailable = false }: { title: string; amount: string; series: { date: string; amountAtomic: string }[]; tint: 'green' | 'blue'; unavailable?: boolean }) {
@@ -35,8 +36,34 @@ function ActivityRow({ event, side }: { event: DashboardEvent; side: 'earned' | 
   </div>;
 }
 
+const evidenceValue = (value: unknown) => value === undefined || value === null ? 'Missing' : typeof value === 'number' ? String(Math.round(value * 1e6) / 1e6) : String(value);
+
+function AuditHistory({ audits }: { audits: DashboardAudit[] }) {
+  if (!audits.length) return <p className="dash-blank">No audit results for your listings yet.</p>;
+  return <div className="audit-evidence-list">{audits.slice(0, 8).map((audit, index) => {
+    const state = audit.inconclusive ? 'Inconclusive'
+      : audit.slashTx ? (audit.pauseTx ? 'Slashed & paused' : 'Slashed; pause pending')
+      : audit.warning ? (audit.warning.level >= audit.warning.threshold ? 'Slash pending' : `Warning ${audit.warning.level}/${audit.warning.threshold - 1}`)
+      : audit.weather ? (audit.pass ? 'Reference within threshold' : 'Reference disagreement — review required')
+      : audit.pass ? 'Verified' : 'Failed';
+    return <article className={`audit-evidence ${audit.warning || audit.slashTx ? 'audit-evidence--warning' : audit.pass ? 'audit-evidence--pass' : ''}`} key={`${audit.at}-${index}`}>
+      <header><span className={`audit-score ${audit.pass ? 'audit-score--pass' : 'audit-score--fail'}`}>{audit.score}</span><div><b>{audit.name}</b><small>{new Date(audit.at).toLocaleString()} · {state}</small></div></header>
+      {audit.weather && <details><summary>View MET Norway evidence</summary><div className="audit-evidence__source"><span>Reference: <a href={audit.weather.referenceUrl} target="_blank" rel="noreferrer">{audit.weather.source} ↗</a></span>{audit.weather.extraFields.length > 0 && <span>Unverified extras: {audit.weather.extraFields.join(', ')}</span>}</div>
+        <p className="muted">{audit.weather.scoringVersion === 'distance-v1' ? 'Exact values earn 100. An error equal to the field tolerance earns 80; larger errors lower the score toward 0. The overall grade is the average, rounded down. At least 80 is required to pass.' : 'This historical audit used the previous grade: 100 meant all compared fields were within tolerance. Run a new audit to get a grade that reflects the size of each difference.'}</p>
+        {audit.weather.probes.map((probe) => <section className="audit-probe" key={probe.id}><h4>{probe.id} · {probe.request.latitude}, {probe.request.longitude} · +{probe.request.forecastHours}h</h4>{probe.status === 'error' ? <p className="muted">Excluded: {probe.error}</p> : <div className="audit-evidence-table" role="table"><div className="audit-evidence-table__head" role="row"><b>Field</b><b>Provider</b><b>MET Norway</b><b>Result</b></div>{probe.fields.map((field) => <div role="row" key={field.id}><code>{field.id}</code><span>{evidenceValue(field.providerValue)}</span><span>{evidenceValue(field.referenceValue)}</span><b className={field.pass ? 'is-good' : 'is-bad'}>{field.reason ?? (field.pass ? 'Within tolerance' : 'Contradiction')}<small>{field.score === undefined ? '' : `${field.score}/100 · `}{field.delta === undefined ? '' : `Δ ${field.delta} · `}Tolerance: {field.tolerance}</small></b></div>)}</div>}</section>)}
+      </details>}
+      {(audit.slashTx || audit.pauseTx) && <p className="audit-evidence__chain">{audit.slashTx && <a href={txUrl(audit.slashTx)} target="_blank" rel="noreferrer">Slash transaction ↗</a>}{audit.pauseTx && <> · <a href={txUrl(audit.pauseTx)} target="_blank" rel="noreferrer">Pause transaction ↗</a></>}</p>}
+      {audit.warning && !audit.slashTx && audit.warning.level === audit.warning.threshold && <p className="muted">The failure threshold was reached, but the onchain slash or pause did not complete. Check the auditor log before retrying.</p>}
+      {audit.error && <p className="field__error">Onchain action failed: {audit.error}</p>}
+    </article>;
+  })}</div>;
+}
+
 export default function DashboardPage() {
   const wallet = useWallet();
+  const [tab,setTab]=useState<'provider'|'buyer'|'community'>('provider');
+  const [unread,setUnread]=useState(0);
+  useEffect(()=>{setUnread(0);setTab('provider');},[wallet.address]);
   const [data, setData] = useState<DashboardSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -112,9 +139,11 @@ export default function DashboardPage() {
     {error && <p className="empty--error">{error}</p>}
     {lastTx && <p role="status">Transaction confirmed · <a href={txUrl(lastTx)} target="_blank" rel="noreferrer">View transaction ↗</a></p>}
     {data.activityError && <p className="demo-notice" role="status">{data.activityError}</p>}
-    {process.env.NEXT_PUBLIC_WEATHER_DEMO === '1' && <div className="demo-notice">Weather demo responses are synthetic fixtures. Requests settle real Testnet USDC to the fixture payout wallets. Dashboard activity below uses confirmed transfers to registered provider wallets.</div>}
 
-    <section className="dash-provider">
+    <nav className="tabs dashboard-tabs" role="tablist" aria-label="Dashboard sections">
+      {([['provider','Provider studio'],['buyer','Buyer activity'],['community','Community']] as const).map(([id,label])=><button key={id} type="button" id={`tab-${id}`} role="tab" aria-selected={tab===id} aria-controls={`panel-${id}`} className={`tab ${tab===id?'is-active':''}`} onClick={()=>setTab(id)}>{label}{id==='community'&&unread>0&&<span className="notification-count" aria-label={`${unread} unread community events`}>{unread}</span>}</button>)}
+    </nav>
+    <section role="tabpanel" id="panel-provider" aria-labelledby="tab-provider" hidden={tab!=='provider'} className="dash-provider">
       <div className="dash-section-head"><div><span className="eyebrow">Provider studio</span><h2>Revenue & operations</h2></div><span className="dash-live"><i/> Refreshes every 10 seconds</span></div>
       <div className="dash-provider__grid">
         <MoneyChart title="Provider earnings" amount={data?.provider.earningsAtomic ?? '0'} series={data?.provider.daily ?? []} tint="green" unavailable={!!data.activityError} />
@@ -144,14 +173,15 @@ export default function DashboardPage() {
         })}</div>}
       </section>
       <div className="dash-lower-grid">
-        <section className="dash-panel"><div className="dash-panel__head"><div><h3>Provider activity</h3><p className="muted">Confirmed USDC transfers to your registered provider wallet, read from Stellar RPC.</p></div></div>{data?.provider.events.length ? <div className="dash-activity">{data.provider.events.slice(0, 8).map((event) => <ActivityRow key={event.id} event={event} side="earned" />)}</div> : <p className="dash-blank">No confirmed USDC transfers to your provider wallet in the last 7 days.</p>}</section>
-        <section className="dash-panel"><div className="dash-panel__head"><div><h3>Trust & audits</h3><p className="muted">Latest audit results for your listings.</p></div></div>{data?.audits.length ? <div className="audit-mini-list">{data.audits.slice(0, 5).map((audit, index) => <div key={`${audit.at}-${index}`}><span className={`audit-score ${audit.pass ? 'audit-score--pass' : 'audit-score--fail'}`}>{audit.score}</span><div><b>{audit.name}</b><small>{new Date(audit.at).toLocaleString()} · {audit.inconclusive ? 'Inconclusive' : audit.pass ? 'Passed' : 'Failed'}</small></div></div>)}</div> : <p className="dash-blank">No audit results for your listings yet.</p>}</section>
+        <section className="dash-panel"><div className="dash-panel__head"><div><h3>Provider activity</h3><p className="muted">Confirmed USDC transfers to your registered provider wallet, read from Stellar RPC.</p></div></div>{data.payoutNotice && <p className="muted">{data.payoutNotice}</p>}{data?.provider.events.length ? <div className="dash-activity">{data.provider.events.slice(0, 8).map((event) => <ActivityRow key={event.id} event={event} side="earned" />)}</div> : <p className="dash-blank">No confirmed USDC transfers to your provider wallet in the last 7 days.</p>}</section>
+        <section className="dash-panel"><div className="dash-panel__head"><div><h3>Trust & audits</h3><p className="muted">MET Norway concordance and technical evidence. API disagreements and votes never automatically slash; moderation decisions appear in the community workspace.</p></div></div><AuditHistory audits={data.audits} /></section>
       </div>
     </section>
 
-    <section className="dash-buyer"><div className="dash-section-head"><div><span className="eyebrow">Buyer activity</span><h2>Your usage & spend</h2></div></div>
+    <section role="tabpanel" id="panel-buyer" aria-labelledby="tab-buyer" hidden={tab!=='buyer'} className="dash-buyer"><div className="dash-section-head"><div><span className="eyebrow">Buyer activity</span><h2>Your usage & spend</h2></div></div>
       <div className="dash-buyer__grid"><MoneyChart title="Spend over time" amount={data.buyer.spentAtomic} series={data.buyer.daily} tint="blue" unavailable={!!data.activityError}/><div className="dash-buyer__summary"><div><span>Total spent</span><b>{data.activityError ? '—' : usd(data.buyer.spentAtomic)}</b></div><div><span>Payments sent</span><b>{data.activityError ? '—' : data.buyer.requests}</b></div><div><span>Average payment</span><b>{data.activityError ? '—' : data.buyer.requests ? usd(String(BigInt(data.buyer.spentAtomic) / BigInt(data.buyer.requests))) : '$0.00'}</b></div></div></div>
-      <section className="dash-panel"><div className="dash-panel__head"><div><h3>Recent payments</h3><p className="muted">Confirmed USDC transfers from this wallet to registered marketplace providers.</p></div></div>{data?.buyer.events.length ? <div className="dash-activity">{data.buyer.events.slice(0, 10).map((event) => <ActivityRow key={event.id} event={event} side="spent" />)}</div> : <p className="dash-blank">No confirmed USDC transfers from this wallet to a registered marketplace provider in the last 7 days.</p>}</section>
+      <section className="dash-panel"><div className="dash-panel__head"><div><h3>Recent payments</h3><p className="muted">Confirmed USDC transfers from this wallet to marketplace providers or weather demo hosts.</p></div></div>{data?.buyer.events.length ? <div className="dash-activity">{data.buyer.events.slice(0, 10).map((event) => <ActivityRow key={event.id} event={event} side="spent" />)}</div> : <p className="dash-blank">No confirmed marketplace payments from this wallet in the last 7 days.</p>}</section>
     </section>
+    <div role="tabpanel" id="panel-community" aria-labelledby="tab-community" hidden={tab!=='community'}><CommunityWorkspace address={wallet.address} listings={data.listings} onUnreadChange={setUnread} /></div>
   </div>;
 }

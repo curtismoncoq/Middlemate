@@ -6,6 +6,7 @@
   "scripts": { "start": "tsx src/main.ts" },
   "dependencies": {
     "@tb/config": "workspace:*",
+    "@tb/community": "workspace:*",
     "@tb/registry-client": "workspace:*",
     "@tb/weather-contract": "workspace:*",
     "@tb/x402-client": "workspace:*"

@@ -3,10 +3,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { loadConfig, REPO_ROOT } from '@tb/config';
 import { createRegistryClient } from '@tb/registry-client';
-import { createPayingFetch } from '@tb/x402-client';
+import { createRecordedPayingFetch } from '@tb/community/paying-fetch';
 import { createRunner, memoryStore, type AuditRecord, type AuditStore } from './runner.ts';
 import { awaitingReview } from './review.ts';
 import { createReferences, ollamaEmbed, REFERENCE_MODELS } from './references.ts';
+import { createMetNorwayClient, WEATHER_SCHEMA_ID } from '@tb/weather-contract';
+import { createCommunityStore } from '@tb/community';
+import { databaseAuditStore } from './database-store.ts';
 
 const cfg = loadConfig();
 const AUDITS_FILE = path.join(REPO_ROOT, 'data/audits.json');
@@ -31,14 +34,17 @@ function fileStore(file: string): AuditStore {
   };
 }
 
-const store = fileStore(AUDITS_FILE);
+const community = createCommunityStore(cfg);
+const store = community ? await databaseAuditStore(community,cfg) : fileStore(AUDITS_FILE);
+const metNorway = createMetNorwayClient();
 const runner = createRunner({
   registry: createRegistryClient(cfg),
   auditorSecret: cfg.keys.auditor.secret,
-  pay: createPayingFetch(cfg.keys.auditor.secret),
+  pay: createRecordedPayingFetch(cfg.keys.auditor.secret,'audit',cfg),
   references: createReferences(REFERENCE_MODELS(cfg), { file: path.join(REPO_ROOT, 'data/references.json') }),
   referenceModels: Object.keys(REFERENCE_MODELS(cfg)),
   embed: ollamaEmbed(cfg.ollamaUrl),
+  weather: { reference: metNorway.forecast },
   store,
   log: (l) => console.log(l),
 });
@@ -50,9 +56,13 @@ app.use((_req, res, next) => {
   res.setHeader('access-control-allow-headers', 'content-type');
   next();
 });
-app.get('/audits', (_req, res) => res.json(store.all()));
+app.get('/audits', async (_req, res) => {
+  try { await store.refresh?.(); res.json(store.all()); }
+  catch { res.status(503).json({ error: 'Shared audit database is unavailable.' }); }
+});
 app.get('/audit/status', (_req, res) => res.json(runner.status()));
 app.delete('/audits', (_req, res) => {
+  if (community) { res.status(409).json({ error: 'Shared history is preserved. Use a new COMMUNITY_NAMESPACE for a clean demo.' }); return; }
   store.clear(); // demo reset
   res.status(204).end();
 });
@@ -76,7 +86,7 @@ if (INTERVAL > 0) setInterval(() => runner.runAudit().catch((e) => console.error
 
 // Audit on entry: a new (never audited) listing is reviewed within a few seconds of registering.
 const ENTRY_POLL_MS = Number(process.env.ENTRY_POLL_MS ?? 5000);
-const refModels = Object.keys(REFERENCE_MODELS(cfg));
+const refModels = [...Object.keys(REFERENCE_MODELS(cfg)), WEATHER_SCHEMA_ID];
 const registry = createRegistryClient(cfg);
 if (ENTRY_POLL_MS > 0) {
   setInterval(async () => {

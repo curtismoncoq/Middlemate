@@ -3,7 +3,7 @@
   "info": {
     "title": "Middlemate Weather API",
     "version": "1",
-    "description": "Canonical machine-readable contract for api:weather@1. Providers support a declared subset of response fields; all returned values use metric units."
+    "description": "Canonical machine-readable contract for api:weather@1. Canonical fields normalize MET Norway Locationforecast values; provider-specific extras are declared separately and are not verified."
   },
   "paths": {
     "/weather/v1/forecast": {
@@ -51,26 +51,32 @@
         "properties": {
           "schema": { "const": "api:weather@1" },
           "availableFields": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-          "location": { "type": "object", "properties": { "name": { "type": "string" }, "latitude": { "type": "number" }, "longitude": { "type": "number" } }, "additionalProperties": false },
+          "extraFields": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$" }, "uniqueItems": true, "maxItems": 20 },
+          "location": { "type": "object", "properties": { "latitude": { "type": "number" }, "longitude": { "type": "number" } }, "additionalProperties": false },
           "forecast": {
             "type": "object",
             "properties": {
               "validAt": { "type": "string", "format": "date-time" },
+              "updatedAt": { "type": "string", "format": "date-time" },
               "temperatureC": { "type": "number" },
-              "feelsLikeC": { "type": "number" },
+              "apparentTemperatureC": { "type": "number" },
               "humidityPct": { "type": "number", "minimum": 0, "maximum": 100 },
+              "dewPointC": { "type": "number" },
               "precipitationMm": { "type": "number", "minimum": 0 },
-              "precipitationProbabilityPct": { "type": "number", "minimum": 0, "maximum": 100 },
               "windSpeedKmh": { "type": "number", "minimum": 0 },
               "windDirectionDeg": { "type": "number", "minimum": 0, "maximum": 360 },
               "cloudCoverPct": { "type": "number", "minimum": 0, "maximum": 100 },
+              "cloudCoverLowPct": { "type": "number", "minimum": 0, "maximum": 100 },
+              "cloudCoverMediumPct": { "type": "number", "minimum": 0, "maximum": 100 },
+              "cloudCoverHighPct": { "type": "number", "minimum": 0, "maximum": 100 },
               "pressureHpa": { "type": "number", "minimum": 0 },
-              "uvIndex": { "type": "number", "minimum": 0 },
-              "weatherCode": { "type": "integer" },
-              "summary": { "type": "string" }
+              "uvIndexClearSky": { "type": "number", "minimum": 0 },
+              "fogPct": { "type": "number", "minimum": 0, "maximum": 100 },
+              "symbolCode": { "type": "string" }
             },
             "additionalProperties": false
-          }
+          },
+          "extras": { "type": "object", "additionalProperties": true }
         },
         "additionalProperties": false
       },
@@ -79,7 +85,8 @@
         "required": ["schema", "availableFields"],
         "properties": {
           "schema": { "const": "api:weather@1" },
-          "availableFields": { "type": "array", "uniqueItems": true, "items": { "type": "string", "enum": ["location.name", "location.latitude", "location.longitude", "forecast.validAt", "forecast.temperatureC", "forecast.feelsLikeC", "forecast.humidityPct", "forecast.precipitationMm", "forecast.precipitationProbabilityPct", "forecast.windSpeedKmh", "forecast.windDirectionDeg", "forecast.cloudCoverPct", "forecast.pressureHpa", "forecast.uvIndex", "forecast.weatherCode", "forecast.summary"] } }
+          "availableFields": { "type": "array", "uniqueItems": true, "items": { "type": "string", "enum": ["location.latitude", "location.longitude", "forecast.validAt", "forecast.updatedAt", "forecast.temperatureC", "forecast.apparentTemperatureC", "forecast.humidityPct", "forecast.dewPointC", "forecast.precipitationMm", "forecast.windSpeedKmh", "forecast.windDirectionDeg", "forecast.cloudCoverPct", "forecast.cloudCoverLowPct", "forecast.cloudCoverMediumPct", "forecast.cloudCoverHighPct", "forecast.pressureHpa", "forecast.uvIndexClearSky", "forecast.fogPct", "forecast.symbolCode"] } },
+          "extraFields": { "type": "array", "uniqueItems": true, "maxItems": 20, "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$" } }
         },
         "additionalProperties": false
       }
