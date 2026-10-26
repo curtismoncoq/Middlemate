@@ -230,6 +230,8 @@ else
   SKIPPED+=("pnpm demo:reset")
 fi
 say ""
+note "If it says audit history is shared in Supabase: comment out SUPABASE_URL and"
+note "SUPABASE_SECRET_KEY in .env, restart Terminal 1, and run it again."
 note "If it stops naming a leftover listing (e.g. Honest Llama): open"
 note "http://localhost:3000/dashboard with that wallet in Freighter, Remove & unstake,"
 note "wait 10 s, Withdraw, then rerun: pnpm demo:reset. A slashed CheapClaude is fine."
@@ -313,6 +315,8 @@ step "MET Plus Demo -> http://localhost:4006/weather/v1/forecast"
 say "     All 11 fields + extra fields pollenRisk, outdoorRecommendation -> PASS, extras unverified."
 step "Dashboard -> Trust & audits -> View MET Norway evidence (values, deltas, tolerances). Stop."
 note "Full field lists and expected grades: docs/demo-runbook.md, MET Norway walkthrough."
+note "Weather listings are never slashed, so they stay listed: before another demo:reset,"
+note "remove all three from Dashboard with the wallet that listed them."
 pause "R7 saved? Enter to continue"
 
 stage "R8 · Dashboard (10 s)"
