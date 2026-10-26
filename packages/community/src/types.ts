@@ -22,4 +22,4 @@ export type Reputation = {
   samples: number; responseSuccessPct: number | null; schemaValidPct: number | null; fieldsPresentPct: number | null;
   reviews: Review[]; decisions: Decision[];
 };
-export type Workspace = { enabled: boolean; wallet: string; moderator: boolean; calls: CommunityCall[]; reviews: Review[]; reports: Report[]; decisions: Decision[] };
+export type Workspace = { enabled: boolean; wallet: string; moderator: boolean; calls: CommunityCall[]; reviews: Review[]; reports: Report[]; decisions: Decision[]; unreadKeys: string[]; apiListingIds: string[] };

@@ -1,5 +1,5 @@
 import { createRegistryClient } from '@tb/registry-client';
-import { CommunityError, createCommunityStore, reputation, type CommunityCall, type Review, type Report, type Decision } from '@tb/community';
+import { CommunityError, createCommunityStore, reputation, providerEventKeys, type CommunityCall, type Review, type Report, type Decision } from '@tb/community';
 import { challenge, communityConfig as cfg, communityError, consumeChallenge, createSession, database, isModerator, requireWallet, sameOrigin, sessionWallet, text, uuid, walletAddress } from '../../../lib/community-server.ts';
 import { recoverReceipt } from '@tb/community/receipts';
 
@@ -31,13 +31,21 @@ export async function GET(req: Request) {
     const wallet = await requireWallet(req);
     const moderator = isModerator(wallet);
     const party = { or: `(buyer.eq.${wallet},provider.eq.${wallet})` };
-    const [calls, reviews, reports] = await Promise.all([
+    const [calls, allReviews, allReports, listings] = await Promise.all([
       db.all<CommunityCall>('community_calls', { ...party, order: 'at.desc' }),
       db.all<Review>('community_reviews', { ...party, order: 'updated_at.desc' }),
       db.all<Report>('community_reports', { ...(moderator ? {} : party), order: 'created_at.desc' }),
+      registry.list(),
     ]);
+    const apiListingIds=listings.filter(row=>row.claimedModel.startsWith('api:')).map(row=>row.id??row.provider);
+    const apiIds=new Set(apiListingIds);
+    const reviews=allReviews.filter(row=>apiIds.has(row.listing_id));
+    const reports=allReports.filter(row=>apiIds.has(row.listing_id));
     const decisions = reports.length ? await db.all<Decision>('community_decisions', { report_id: `in.(${reports.map((report) => report.id).join(',')})`, order: 'created_at.desc' }) : [];
-    return Response.json({ enabled: true, wallet, moderator, calls, reviews, reports, decisions });
+    const read = await db.all<{event_key:string}>('community_reads', {wallet:eq(wallet)});
+    const readKeys = new Set(read.map(row=>row.event_key));
+    const unreadKeys = providerEventKeys(wallet,reviews,reports,decisions).filter(key=>!readKeys.has(key));
+    return Response.json({ enabled: true, wallet, moderator, calls, reviews, reports, decisions, unreadKeys, apiListingIds });
   } catch (error) { return communityError(error); }
 }
 
@@ -53,6 +61,25 @@ export async function POST(req: Request) {
     }
     if (body.action === 'recover_receipt') return Response.json(await recoverReceipt(db,cfg,text(body.proof,'Receipt proof',1,16000)));
     const wallet = await requireWallet(req);
+    if (body.action === 'mark_read') {
+      if (!Array.isArray(body.keys) || body.keys.length>500 || body.keys.some((key:unknown)=>typeof key!=='string'||key.length>200)) throw new CommunityError('Invalid notification keys.');
+      const [reviews,reports,decisions] = await Promise.all([
+        db.all<Review>('community_reviews',{provider:eq(wallet)}),
+        db.all<Report>('community_reports',{provider:eq(wallet)}),
+        db.all<Decision>('community_decisions',{provider:eq(wallet),status:'eq.completed'}),
+      ]);
+      const allowed=new Set(providerEventKeys(wallet,reviews,reports,decisions));
+      const keys=[...new Set(body.keys as string[])];
+      if(keys.some(key=>!allowed.has(key))) throw new CommunityError('This notification does not belong to your wallet.',403);
+      if(keys.length) await db.insert('community_reads',keys.map(event_key=>({wallet,event_key})),'namespace,wallet,event_key');
+      return Response.json({saved:true});
+    }
+    if (body.action === 'review' || body.action === 'report') {
+      const [call]=await db.rows<CommunityCall>('community_calls',{id:eq(uuid(body.callId)),buyer:eq(wallet),limit:'1'});
+      if(!call) throw new CommunityError('Verified API call required.',409);
+      const listing=(await registry.list()).find(row=>(row.id??row.provider)===call.listing_id);
+      if(!listing?.claimedModel.startsWith('api:')||listing.provider!==call.provider) throw new CommunityError('Community feedback is available for API listings only.',409);
+    }
     if (body.action === 'review') {
       if (![1,-1].includes(body.vote)) throw new CommunityError('Choose a green or red thumb.');
       return Response.json(await db.rpc('community_save_review', { p_wallet: wallet, p_call_id: uuid(body.callId), p_vote: body.vote, p_reason: body.vote === -1 ? reason(body.reason) : '', p_comment: text(body.comment ?? '', 'Comment', 0, 1000) }));

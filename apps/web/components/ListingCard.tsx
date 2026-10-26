@@ -97,8 +97,7 @@ export function ListingCard({ listing: l, now, onTry, auditing, preview }: Props
       ) : null}
 
       {l.claimedModel === 'api:weather@1' && !preview && <WeatherFieldMatrix listing={l} />}
-      {l.claimedModel === 'api:weather@1' && a && !a.inconclusive && <p>MET Norway concordance: <b>{a.score}/100</b><small className="muted"> · Forecast agreement</small></p>}
-      {l.communityEnabled && !preview && <ListingCommunity listingId={l.id ?? l.provider} />}
+      {isApi && l.communityEnabled && !preview && <ListingCommunity compact listingId={l.id ?? l.provider} />}
 
       <div className="card__money">
         <p className="card__price">

@@ -98,6 +98,13 @@ export function ListForm({ models }: { models: ModelOption[] }) {
   const txLink = (s?: Step) => s?.hash && <a href={txUrl(s.hash)} target="_blank" rel="noreferrer">tx {s.hash.slice(0, 6)}…</a>;
 
   return (
+    <>
+    <header className="page-head">
+      <h1 className="display display--left">Open a stall</h1>
+      <p className="page-head__sub">{category === 'weather'
+        ? 'Stake USDC to list your weather API. Verified customer reviews and MET Norway comparisons provide the evidence. You can respond and correct problems during the review period; a moderator decides whether slashing is justified.'
+        : 'Stake USDC on what you serve. The auditor buys from you like any customer, and a false claim costs the stake.'}</p>
+    </header>
     <div className="listing-layout">
     <form className="listform" onSubmit={submit}>
       <fieldset className="segmented">
@@ -105,7 +112,7 @@ export function ListForm({ models }: { models: ModelOption[] }) {
         <label><input type="radio" name="category" checked={category === 'inference'} onChange={() => { setCategory('inference'); setForm({ ...form, claimedModel: choice === OTHER ? '' : choice }); }} /> <span>Inference model</span></label>
         <label><input type="radio" name="category" checked={category === 'weather'} onChange={() => { setCategory('weather'); setForm({ ...form, claimedModel: WEATHER_SCHEMA_ID }); }} /> <span>Weather API</span></label>
       </fieldset>
-      {field('name', 'Listing name', 'My Llama endpoint')}
+      {field('name', 'Listing name', category === 'weather' ? 'My weather API' : 'My Llama endpoint')}
       {field('endpoint', 'Endpoint URL', category === 'weather' ? 'https://…/weather/v1/forecast' : 'https://…/v1/chat/completions', category === 'weather' ? 'POST /weather/v1/forecast, paid over x402.' : 'OpenAI-compatible chat completions, paid over x402.')}
       {category === 'inference' ? (
         <>
@@ -179,23 +186,24 @@ export function ListForm({ models }: { models: ModelOption[] }) {
       </section>
       <section className="rail-next">
         <h2>After you submit</h2>
-        <p className="atrisk"><span className="num">{`${stake.toLocaleString('en-US')} USDC`}</span> at stake if your answers don&apos;t match {category === 'weather' ? 'your contract' : 'the model you claim'}.</p>
+        <p className="atrisk"><span className="num">{`${stake.toLocaleString('en-US')} USDC`}</span>{category === 'weather' ? ' locked for this listing. Any slashing requires evidence and a moderator’s decision.' : <> at stake if your answers don&apos;t match the model you claim.</>}</p>
         <ol className="track">
           <li className={stepState(signed)}>
             <b>{`Register & stake ${stake.toLocaleString('en-US')} USDC`}</b>
             <span>{signed?.hash ? txLink(signed) : signed ? 'Waiting for your wallet…' : 'One signature in your wallet; the stake is locked in the Soroban registry.'}</span>
           </li>
           <li className={signed?.hash ? 'is-waiting' : ''}>
-            <b>Audit on entry</b>
+            <b>{category === 'weather' ? 'Compare with MET Norway' : 'Audit on entry'}</b>
             <span>{category === 'weather' ? 'The auditor compares forecasts with MET Norway and publishes the evidence. Disagreement does not automatically slash your stake.' : 'The auditor buys hidden probes at your price and fingerprints the answers. You show as Under review until it finishes.'}</span>
           </li>
           <li>
             <b>{category === 'weather' ? 'Reputation, evidence & human review' : `Trust ${SLASH_LINE} or more: listed`}</b>
-            <span>{category === 'weather' ? 'Customers can leave verified reviews and report specific problems. An authorized moderator reviews evidence and your response before a financial sanction.' : 'Below the line, the stake goes to the treasury and the listing is removed.'}</span>
+            <span>{category === 'weather' ? 'Paid customers can review your API and report problems. You can respond and correct your API during the review period. A moderator considers the evidence, your response and any corrections before deciding on a sanction. Votes never slash your stake automatically.' : 'Below the line, the stake goes to the treasury and the listing is removed.'}</span>
           </li>
         </ol>
       </section>
     </aside>
     </div>
+    </>
   );
 }

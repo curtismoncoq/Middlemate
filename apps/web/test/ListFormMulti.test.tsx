@@ -54,3 +54,14 @@ it('checks free-form extra fields against the public manifest', async () => {
   await waitFor(() => expect(screen.getByRole('button', { name: 'Register & stake' })).toBeTruthy());
   expect(fetch).toHaveBeenCalledWith('/api/tx', expect.objectContaining({ method: 'POST' }));
 });
+
+it('switches the introduction between automatic inference audits and API community review',()=>{
+ render(<ListForm models={[{id:'MiniMax-M2.7',label:'MiniMax'}]}/>);
+ expect(screen.getByText(/The auditor buys from you like any customer/)).toBeTruthy();
+ fireEvent.click(screen.getByLabelText('Weather API'));
+ expect(screen.queryByText(/The auditor buys from you like any customer/)).toBeNull();
+ expect(screen.getByText(/Verified customer reviews and MET Norway comparisons provide the evidence/)).toBeTruthy();
+ expect(screen.getByText(/You can respond and correct problems during the review period/)).toBeTruthy();
+ fireEvent.click(screen.getByLabelText('Inference model'));
+ expect(screen.getByText(/The auditor buys from you like any customer/)).toBeTruthy();
+});

@@ -484,3 +484,23 @@ a { color: var(--lime); }
 }
 
 .provider-listing__identity small { overflow-wrap: anywhere; }
+
+/* Weather forms and feedback share one scroll area, including on short screens. */
+.tryit--weather { overflow-y: auto; }
+.tryit--weather > * { flex-shrink: 0; }
+.tryit--weather .tryit__msgs { overflow: visible; flex: none; }
+.tryit__msgs > .call-actions { flex-shrink: 0; }
+.community-summary { margin: 10px 0; padding: 0; background: transparent; font-size: 14px; }
+.community-thumbs { gap: 14px; font-weight: 500; }
+.community-thumbs > span { display: inline-flex; align-items: center; gap: 5px; }
+.community-summary > details { margin-top: 6px; color: var(--muted); }
+.community-summary > details > summary { cursor: pointer; font-size: 13px; }
+.community-summary .community-item { color: var(--text); }
+.community-item b svg { vertical-align: -2px; margin-right: 4px; }
+.call-actions .btn svg { vertical-align: middle; margin-right: 6px; }
+
+.dashboard-tabs { margin: -8px 0 0; flex-wrap: wrap; gap: 12px 28px; }
+.notification-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 5px; margin-left: 8px; border-radius: 50%; background: var(--lime); color: var(--lime-ink); font: 600 13px var(--font-sans), sans-serif; vertical-align: middle; }
+.dashboard [role="tabpanel"][hidden] { display: none; }
+.dashboard .community-workspace { margin-top: 0; padding-top: 0; border-top: 0; }
+.dashboard .dash-buyer { border-top: 0; padding-top: 0; }

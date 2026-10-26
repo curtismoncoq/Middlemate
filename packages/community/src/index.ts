@@ -3,6 +3,7 @@ import { Keypair, StrKey } from '@stellar/stellar-sdk';
 import { loadConfig, type Config } from '@tb/config';
 import type { CommunityCall, Decision, Reputation, Review } from './types.ts';
 export type * from './types.ts';
+export { providerEventKeys } from './notifications.ts';
 
 export class CommunityError extends Error {
   constructor(message: string, public status = 400) { super(message); }
@@ -16,7 +17,7 @@ export function verifyWalletMessage(wallet: string, message: string, signature: 
   } catch { return false; }
 }
 
-type Table = 'community_calls' | 'community_reviews' | 'community_reports' | 'community_decisions' | 'community_audits' | 'community_challenges' | 'community_sessions';
+type Table = 'community_reads' | 'community_calls' | 'community_reviews' | 'community_reports' | 'community_decisions' | 'community_audits' | 'community_challenges' | 'community_sessions';
 export function createCommunityStore(cfg: Config = loadConfig()) {
   if (!cfg.supabaseUrl && !cfg.supabaseSecretKey) return null;
   if (!cfg.supabaseUrl || !cfg.supabaseSecretKey) throw new CommunityError('Set both SUPABASE_URL and SUPABASE_SECRET_KEY on the server.', 503);
@@ -34,6 +35,7 @@ export function createCommunityStore(cfg: Config = loadConfig()) {
     if (!response.ok) {
       const body = await response.json().catch(() => ({})) as { message?: string; code?: string };
       if (response.status === 401 || response.status === 403) throw new CommunityError('Supabase rejected the server key or table grants. Check the setup guide.', 503);
+      if (['42P01','PGRST205'].includes(body.code ?? '') && path.startsWith('community_reads')) throw new CommunityError('Run supabase/migrations/202610260002_community_reads.sql to enable persistent notifications.', 503);
       if (['42P01','PGRST205','PGRST202'].includes(body.code ?? '')) throw new CommunityError('Supabase migration is missing. Run supabase/migrations/202610250001_community_trust.sql.', 503);
       throw new CommunityError(body.message?.slice(0, 500) ?? `Database HTTP ${response.status}`, response.status >= 500 ? 503 : 409);
     }

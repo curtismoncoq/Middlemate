@@ -78,3 +78,14 @@ describe('provider wallet actions', () => {
     expect(calls).toHaveLength(1);
   });
 });
+
+it('switches between the three dashboard sections',async()=>{
+  setup([listing('one','Weather')]);
+  const provider=await screen.findByRole('tab',{name:'Provider studio'});
+  expect(provider.getAttribute('aria-selected')).toBe('true');
+  fireEvent.click(screen.getByRole('tab',{name:'Buyer activity'}));
+  expect(screen.getByRole('heading',{name:'Your usage & spend'})).toBeTruthy();
+  expect(provider.getAttribute('aria-selected')).toBe('false');
+  fireEvent.click(screen.getByRole('tab',{name:/Community/}));
+  expect(screen.getByRole('heading',{name:'Community workspace'})).toBeTruthy();
+});

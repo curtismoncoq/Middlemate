@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import { price, txUrl, type ApiListing } from '../lib/types.ts';
-import { CallActions } from './Community.tsx';
 
 export type BrowserPay = (url: string, init: RequestInit) => Promise<Response & { payment?: { txHash: string } }>;
 type Msg = { role: 'user' | 'assistant'; content: string; txHash?: string; callId?: string; receiptError?: string; receiptProof?: string };
@@ -53,7 +52,6 @@ export function TryItPanel({ listing, pay, onClose }: Props) {
             {m.txHash && m.txHash !== 'simulated' && (
               <a href={txUrl(m.txHash)} target="_blank" rel="noreferrer">paid {cost} · tx {m.txHash.slice(0, 6)}…</a>
             )}
-            {(m.callId || m.receiptError) && <CallActions callId={m.callId} receiptError={m.receiptError} proof={m.receiptProof} />}
           </div>
         ))}
         {busy && <div className="bubble bubble--assistant muted">Waiting for your wallet signature and settlement…</div>}

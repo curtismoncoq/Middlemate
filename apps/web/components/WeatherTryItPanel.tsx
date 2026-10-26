@@ -47,7 +47,7 @@ export function WeatherTryItPanel({ listing, pay, onClose }: TryItProps) {
   };
 
   return (
-    <aside className="tryit" role="dialog" aria-label={`Try ${listing.name}`}>
+    <aside className="tryit tryit--weather" role="dialog" aria-label={`Try ${listing.name}`}>
       <header className="tryit__head"><div><b>{listing.name}</b> · <code>{WEATHER_SCHEMA_ID}</code><div className="muted">{cost} per weather request, paid over x402</div></div><button className="btn btn--ghost" onClick={onClose} aria-label="Close">✕</button></header>
       <form className="weather-tryit" onSubmit={submit}>
         <label className="field">Latitude<input type="number" min="-90" max="90" step="any" required value={latitude} onChange={(e) => setLatitude(e.target.value)} /></label>

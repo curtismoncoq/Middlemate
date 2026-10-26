@@ -81,3 +81,13 @@ Un échec de stockage après un paiement ne doit jamais vous faire repayer : le 
 - Postgres et Stellar ne partagent pas de transaction atomique. Un crash entre une sanction confirmée et son enregistrement nécessite une vérification opérateur. Une décision bloquée en `executing` doit être examinée avant toute reprise.
 - Le cooldown onchain existant de 10 secondes ne garantit pas que le stake restera disponible pendant une longue modération. Aucun verrouillage supplémentaire n'est ajouté au contrat.
 - Les sessions utilisent le compte Ed25519 Freighter ; l'authentification multisig/contract-wallet n'est pas implémentée. Les clés et URL sont nécessaires avant le test sur votre véritable projet Supabase.
+
+## Dashboard tabs and unread community events
+
+Run `supabase/migrations/202610260002_community_reads.sql` in the SQL Editor after the initial migration. No new environment variables are required. It adds private, server-only acknowledgements keyed by namespace, wallet and event revision.
+
+Dashboard has three selectors: Provider studio, Buyer activity and Community. Verify the provider wallet once in Community to load private notifications. The circular count includes new/updated customer reviews, new reports and completed moderation decisions concerning that provider. It refreshes every 10 seconds while the dashboard is open, including when another tab is selected. Opening Community does not clear it. **Mark as read** acknowledges only the loaded events (up to 500 per click); new events remain unread. The state survives refreshes and new wallet sessions on other browsers after signature verification. Buyer purchases and the provider’s own replies do not increment this provider notification count.
+
+Test with a buyer review, then the provider: verify its wallet, observe Community (1), switch tabs and refresh, then press Mark as read. Refresh once more: the count stays cleared. A new report or review revision should create a new notification.
+
+Les avis et signalements communautaires sont réservés aux listings `api:`. Les endpoints inference gardent leur audit automatique et leur historique financier dans Buyer activity, sans pouces ni actions sociales.

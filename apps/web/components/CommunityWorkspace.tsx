@@ -2,8 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Decision, Report, Workspace } from '@tb/community/types';
 import { communityAction, communityJson, ensureCommunitySession, moderate } from '../lib/community-client.ts';
-import { txUrl, price, type ApiListing } from '../lib/types.ts';
-import { CallActions, ListingCommunity, REASONS } from './Community.tsx';
+import { txUrl, type ApiListing } from '../lib/types.ts';
+import { ListingCommunity, REASONS, ThumbIcon } from './Community.tsx';
 
 const open = (report: Report) => !['confirmed','dismissed','resolved'].includes(report.status);
 
@@ -41,11 +41,12 @@ function Case({report,wallet,moderator,decisions,onSaved}:{report:Report;wallet:
   </article>;
 }
 
-export function CommunityWorkspace({address,listings}:{address:string;listings:ApiListing[]}) {
+export function CommunityWorkspace({address,listings,onUnreadChange}:{address:string;listings:ApiListing[];onUnreadChange?:(count:number)=>void}) {
   const [data,setData]=useState<Workspace|null>(null);
   const [enabled,setEnabled]=useState<boolean|null>(null);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
+  useEffect(()=>{onUnreadChange?.(data?.unreadKeys?.length??0);},[data,onUnreadChange]);
   const current=useRef(address);current.current=address;
   const load=useCallback(async()=>{
     const requested=address;
@@ -65,24 +66,19 @@ export function CommunityWorkspace({address,listings}:{address:string;listings:A
     return()=>{clearInterval(timer);window.removeEventListener('community-updated',refresh);};
   },[!!data,load]);
   const refresh=()=>void load().catch(e=>setError(e.message));
-  const owned=listings.filter(listing=>listing.provider===address);
-  const calls=data?.calls??[];
-  const purchases=calls.filter(call=>call.buyer===address&&call.source!=='audit');
-  const incoming=calls.filter(call=>call.provider===address);
+  const owned=listings.filter(listing=>listing.provider===address&&listing.claimedModel.startsWith('api:'));
+  const apiIds=new Set(data?.apiListingIds??[]);
   return <section className="community-workspace">
-    <div className="dash-section-head"><div><span className="eyebrow">Experience, evidence & accountability</span><h2>Community workspace</h2></div></div>
+    <div className="dash-section-head"><div><span className="eyebrow">Experience, evidence & accountability</span><h2>Community workspace</h2></div>{data&&<button className="btn btn--outline" disabled={busy||!data.unreadKeys?.length} onClick={async()=>{setBusy(true);setError('');try{await communityAction(address,{action:'mark_read',keys:data.unreadKeys.slice(0,500)});await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>{busy?'Saving…':'Mark as read'}</button>}</div>
     <p className="muted">User reputation, observed technical results and weather concordance are separate signals. Votes and weather differences never automatically slash an API provider.</p>
     {enabled===false&&<p className="dash-blank">Shared community features are not configured yet. Add the Supabase configuration described in the setup guide to enable verified call history, reviews and reports.</p>}
-    {enabled&&owned.length>0&&<section className="dash-panel"><h3>Your listings: reputation & observed results</h3>{owned.map(listing=>{
-      const served=incoming.filter(call=>call.listing_id===(listing.id??listing.provider));
-      return <article className="community-item" key={listing.id??listing.provider}><h4>{listing.name}</h4>{listing.claimedModel==='api:weather@1'&&<p>MET Norway concordance: {listing.lastAudit&&!listing.lastAudit.inconclusive?`${listing.lastAudit.score}/100`:'No comparable result yet'} · <span className="muted">Forecast agreement, not a fraud verdict</span></p>}{data&&<p>Recorded listing revenue: {price(String(served.reduce((sum,call)=>sum+BigInt(call.amount_atomic),0n)))} · {served.length} confirmed payments</p>}<ListingCommunity listingId={listing.id??listing.provider}/></article>;
+    {enabled&&owned.length>0&&<section className="dash-panel"><h3>Your APIs: reputation & observed results</h3>{owned.map(listing=>{
+      return <article className="community-item" key={listing.id??listing.provider}><h4>{listing.name}</h4>{process.env.NEXT_PUBLIC_WEATHER_DEMO==='1'&&listing.claimedModel==='api:weather@1'&&/^http:\/\/(localhost|127\.0\.0\.1):(4003|4004|4005|4006)\//.test(listing.endpoint)&&<p className="muted">Weather demo using live MET Norway data. Testnet USDC payments go to the registered provider.</p>}{listing.claimedModel==='api:weather@1'&&<p>MET Norway concordance: {listing.lastAudit&&!listing.lastAudit.inconclusive?`${listing.lastAudit.score}/100`:'No comparable result yet'} · <span className="muted">Forecast agreement, not a fraud verdict</span></p>}<ListingCommunity listingId={listing.id??listing.provider}/></article>;
     })}</section>}
-    {enabled&&!data&&<button className="btn btn--outline" disabled={busy} onClick={async()=>{setBusy(true);setError('');try{await ensureCommunitySession(address);await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>{busy?'Confirm the message in Freighter…':'Verify wallet to view calls & private cases'}</button>}
+    {enabled&&!data&&<button className="btn btn--outline" disabled={busy} onClick={async()=>{setBusy(true);setError('');try{await ensureCommunitySession(address);await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>{busy?'Confirm the message in Freighter…':'Verify wallet to view reviews & private cases'}</button>}
     {error&&<p className="field__error" role="alert">{error}</p>}
     {data&&<>
-      <section className="dash-panel"><h3>Your verified paid calls</h3><p className="muted">These calls are bound to a specific listing and confirmed payment. Older wallet transfers without this evidence cannot unlock reviews.</p>{!purchases.length&&<p className="dash-blank">No verified paid calls yet. Try a listed endpoint to start your history.</p>}{purchases.slice(0,30).map(call=><article className="community-item" key={call.id}><b>{call.listing_name} · {price(call.amount_atomic)}</b><small>{new Date(call.at).toLocaleString()} · HTTP {call.status_code} · {call.response_ok?'Response received':'Response error'}</small><a href={txUrl(call.tx_hash)} target="_blank" rel="noreferrer">Confirmed payment ↗</a><CallActions callId={call.id}/></article>)}</section>
-      {owned.length>0&&<section className="dash-panel"><h3>Recent calls to your listings</h3>{!incoming.length&&<p className="dash-blank">No recorded calls to your listings yet.</p>}{incoming.slice(0,30).map(call=><article className="community-item" key={call.id}><b>{call.listing_name} · +{price(call.amount_atomic)}</b><small>{new Date(call.at).toLocaleString()} · {call.source==='audit'?'Auditor probe':'Customer call'} · HTTP {call.status_code}</small><a href={txUrl(call.tx_hash)} target="_blank" rel="noreferrer">Payment ↗</a></article>)}</section>}
-      {data.reviews.filter(review=>review.provider===address).length>0&&<section className="dash-panel"><h3>Respond to your customer reviews</h3>{data.reviews.filter(review=>review.provider===address).map(review=><article className="community-item" key={review.id}><b>{review.vote===1?'👍 Satisfactory':'👎 Unsatisfactory'}</b><p>{REASONS.find(([id])=>id===review.reason)?.[1]} {review.comment}</p><Reply wallet={address} id={review.id} kind="review" initial={review.provider_reply} onSaved={refresh}/></article>)}</section>}
+      {data.reviews.filter(review=>review.provider===address&&apiIds.has(review.listing_id)).length>0&&<section className="dash-panel"><h3>Respond to your customer reviews</h3>{data.reviews.filter(review=>review.provider===address&&apiIds.has(review.listing_id)).map(review=><article className="community-item" key={review.id}><b><ThumbIcon down={review.vote===-1}/> {review.vote===1?'Satisfactory':'Unsatisfactory'}</b><p>{REASONS.find(([id])=>id===review.reason)?.[1]} {review.comment}</p><Reply wallet={address} id={review.id} kind="review" initial={review.provider_reply} onSaved={refresh}/></article>)}</section>}
       <section className="dash-panel"><h3>{data.moderator?'Moderator queue & case history':'Your reports & provider cases'}</h3><p className="muted">Private evidence is visible only to the buyer, provider and configured moderators. Confirmed decisions are public.</p>{!data.reports.length&&<p className="dash-blank">No reports to display.</p>}{data.reports.map(report=><Case key={report.id} report={report} wallet={address} moderator={data.moderator} decisions={data.decisions.filter(decision=>decision.report_id===report.id)} onSaved={refresh}/>)}</section>
     </>}
   </section>;

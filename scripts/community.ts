@@ -18,7 +18,7 @@ async function main() {
     console.log(`Imported ${inserted} audits into namespace ${db.namespace}. Existing rows were preserved. No stakes or payments changed.`);
     return;
   }
-  await Promise.all((['community_calls','community_reviews','community_reports','community_decisions','community_audits','community_challenges','community_sessions'] as const).map(table=>db.rows(table,{limit:'1'})));
+  await Promise.all((['community_reads','community_calls','community_reviews','community_reports','community_decisions','community_audits','community_challenges','community_sessions'] as const).map(table=>db.rows(table,{limit:'1'})));
   console.log(`Supabase tables and server access are ready. Namespace: ${db.namespace}`);
   console.log(`Moderator wallets configured: ${cfg.moderatorWallets.length}. Provider response window: ${cfg.moderationResponseSeconds}s.`);
 }

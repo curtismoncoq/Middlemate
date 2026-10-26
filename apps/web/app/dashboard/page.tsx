@@ -61,6 +61,9 @@ function AuditHistory({ audits }: { audits: DashboardAudit[] }) {
 
 export default function DashboardPage() {
   const wallet = useWallet();
+  const [tab,setTab]=useState<'provider'|'buyer'|'community'>('provider');
+  const [unread,setUnread]=useState(0);
+  useEffect(()=>{setUnread(0);setTab('provider');},[wallet.address]);
   const [data, setData] = useState<DashboardSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -136,9 +139,11 @@ export default function DashboardPage() {
     {error && <p className="empty--error">{error}</p>}
     {lastTx && <p role="status">Transaction confirmed · <a href={txUrl(lastTx)} target="_blank" rel="noreferrer">View transaction ↗</a></p>}
     {data.activityError && <p className="demo-notice" role="status">{data.activityError}</p>}
-    {process.env.NEXT_PUBLIC_WEATHER_DEMO === '1' && <div className="demo-notice">Weather demos use live MET Norway reference data: exact, tolerated deviation, dishonest deviation and unverified extras. Requests settle real Testnet USDC to the fixture payout wallets.</div>}
 
-    <section className="dash-provider">
+    <nav className="tabs dashboard-tabs" role="tablist" aria-label="Dashboard sections">
+      {([['provider','Provider studio'],['buyer','Buyer activity'],['community','Community']] as const).map(([id,label])=><button key={id} type="button" id={`tab-${id}`} role="tab" aria-selected={tab===id} aria-controls={`panel-${id}`} className={`tab ${tab===id?'is-active':''}`} onClick={()=>setTab(id)}>{label}{id==='community'&&unread>0&&<span className="notification-count" aria-label={`${unread} unread community events`}>{unread}</span>}</button>)}
+    </nav>
+    <section role="tabpanel" id="panel-provider" aria-labelledby="tab-provider" hidden={tab!=='provider'} className="dash-provider">
       <div className="dash-section-head"><div><span className="eyebrow">Provider studio</span><h2>Revenue & operations</h2></div><span className="dash-live"><i/> Refreshes every 10 seconds</span></div>
       <div className="dash-provider__grid">
         <MoneyChart title="Provider earnings" amount={data?.provider.earningsAtomic ?? '0'} series={data?.provider.daily ?? []} tint="green" unavailable={!!data.activityError} />
@@ -173,10 +178,10 @@ export default function DashboardPage() {
       </div>
     </section>
 
-    <section className="dash-buyer"><div className="dash-section-head"><div><span className="eyebrow">Buyer activity</span><h2>Your usage & spend</h2></div></div>
+    <section role="tabpanel" id="panel-buyer" aria-labelledby="tab-buyer" hidden={tab!=='buyer'} className="dash-buyer"><div className="dash-section-head"><div><span className="eyebrow">Buyer activity</span><h2>Your usage & spend</h2></div></div>
       <div className="dash-buyer__grid"><MoneyChart title="Spend over time" amount={data.buyer.spentAtomic} series={data.buyer.daily} tint="blue" unavailable={!!data.activityError}/><div className="dash-buyer__summary"><div><span>Total spent</span><b>{data.activityError ? '—' : usd(data.buyer.spentAtomic)}</b></div><div><span>Payments sent</span><b>{data.activityError ? '—' : data.buyer.requests}</b></div><div><span>Average payment</span><b>{data.activityError ? '—' : data.buyer.requests ? usd(String(BigInt(data.buyer.spentAtomic) / BigInt(data.buyer.requests))) : '$0.00'}</b></div></div></div>
       <section className="dash-panel"><div className="dash-panel__head"><div><h3>Recent payments</h3><p className="muted">Confirmed USDC transfers from this wallet to marketplace providers or weather demo hosts.</p></div></div>{data?.buyer.events.length ? <div className="dash-activity">{data.buyer.events.slice(0, 10).map((event) => <ActivityRow key={event.id} event={event} side="spent" />)}</div> : <p className="dash-blank">No confirmed marketplace payments from this wallet in the last 7 days.</p>}</section>
     </section>
-    <CommunityWorkspace address={wallet.address} listings={data.listings} />
+    <div role="tabpanel" id="panel-community" aria-labelledby="tab-community" hidden={tab!=='community'}><CommunityWorkspace address={wallet.address} listings={data.listings} onUnreadChange={setUnread} /></div>
   </div>;
 }
