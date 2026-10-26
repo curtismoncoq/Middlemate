@@ -292,7 +292,8 @@ fi
 pause "Enter to continue"
 
 stage "Reset the whole project"
-warn "Unregisters every legacy listing (stakes refunded), seeds Provider A,"
+warn "Unregisters every legacy listing (stakes refunded), pauses listings made from /list"
+warn "(their stake stays with the owner, withdrawable from Dashboard), seeds Provider A,"
 warn "audits it once (~1 min), resets the agent budget to \$0.50 and the audit log."
 note "It also warms every Ollama model for 30 min."
 if confirm "Run pnpm demo:reset now?"; then
@@ -303,13 +304,6 @@ if confirm "Run pnpm demo:reset now?"; then
       warn "Audit history is shared in Supabase."
       note "Comment out SUPABASE_URL and SUPABASE_SECRET_KEY in .env, restart the stack window"
       note "(Ctrl-C, then pnpm demo:weather), then answer y below."
-    elif grep -q '^Still listed' "$reset_log"; then
-      warn "Only each listing's owner can remove it. Owners named above:"
-      grep -o '([A-Z0-9]\{4\}…[A-Z0-9]\{4\})' "$reset_log" | sort -u | sed 's/^/     wallet /'
-      note "For each wallet: switch Freighter to it, open http://localhost:3000/dashboard,"
-      note "Remove & unstake each of its listings (wait 10 s; Withdraw can come later)."
-      note "A wallet that isn't yours: ask its owner to do the same."
-      open_url "http://localhost:3000/dashboard"
     else
       warn "Reset failed; read the message above."
     fi
@@ -355,7 +349,7 @@ pause "R3 saved? Enter to continue"
 
 stage "R4 + R9 · The cheater, wallet 2 (2-3 min)"
 warn "IRREVERSIBLE: the slash burns the stake to the treasury and spends auditor USDC."
-warn "Undo = remove Honest Llama (wallet 1), pnpm demo:reset, redo R2 onward."
+warn "Undo = pnpm demo:reset (pauses Honest Llama), then redo R2 onward."
 say "Start TWO recordings: the browser (R4) and the stack window (R9)."
 step "Switch Freighter to wallet 2."
 step "/list -> Name: CheapClaude"
@@ -403,8 +397,8 @@ step "MET Plus Demo -> http://localhost:4006/weather/v1/forecast"
 say "     All 11 fields + extra fields pollenRisk, outdoorRecommendation -> PASS, extras unverified."
 step "Dashboard -> Trust & audits -> View MET Norway evidence (values, deltas, tolerances). Stop."
 note "Full field lists and expected grades: docs/demo-runbook.md, MET Norway walkthrough."
-note "Weather listings are never slashed, so they stay listed: before another demo:reset,"
-note "remove all three from Dashboard with the wallet that listed them."
+note "Weather listings are never slashed; the next demo:reset pauses them (stakes stay"
+note "with the wallet that listed them, withdrawable from Dashboard)."
 pause "R7 saved? Enter to continue"
 
 stage "R8 · Dashboard (10 s)"
