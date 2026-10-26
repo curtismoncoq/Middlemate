@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Listing } from '@tb/registry-client';
-import { resetPlan, blockingMessage } from '../reset-plan.ts';
+import { resetPlan, blockingMessage, sharedHistoryBlock } from '../reset-plan.ts';
 
 const W1 = 'GAHONESTWALLET00000000000000000000000000000000000000WXYZ';
 const base: Listing = { provider: 'GLEGACYPROVIDERA', name: 'Provider A', endpoint: 'http://x', claimedModel: 'MiniMax-M2.7', priceAtomic: 200000n, stakeAtomic: 50000000n, active: true };
@@ -29,5 +29,20 @@ describe('resetPlan', () => {
   });
   it('names each blocking listing and its owner wallet', () => {
     expect(blockingMessage([perId({ name: 'Honest Llama' })])).toMatch(/Honest Llama \(GAHO…WXYZ\)/);
+  });
+});
+
+describe('sharedHistoryBlock', () => {
+  it('lets reset run when audits live in the local file', () => {
+    expect(sharedHistoryBlock(false, [])).toBeNull();
+  });
+  it('stops reset when the audit log is shared in Supabase, naming how to get a clean one', () => {
+    const msg = sharedHistoryBlock(true, []);
+    expect(msg).toMatch(/Supabase/);
+    expect(msg).toMatch(/SUPABASE_URL/);
+    expect(msg).toMatch(/COMMUNITY_NAMESPACE/);
+  });
+  it('runs anyway with --keep-shared-audits', () => {
+    expect(sharedHistoryBlock(true, ['--keep-shared-audits'])).toBeNull();
   });
 });

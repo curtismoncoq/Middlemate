@@ -20,3 +20,12 @@ export function blockingMessage(blocking: Listing[]) {
   const names = blocking.map((l) => `${l.name} (${short(l.provider)})`).join(', ');
   return `Still listed: ${names}. Remove each one from Dashboard with its owner's wallet (the 10 s grace is enough; withdraw can come later), then run demo:reset again.`;
 }
+
+/**
+ * With Supabase configured the auditor keeps audits in a shared namespace and refuses to clear them,
+ * so a reset would leave old audits on camera. Stop before touching the chain unless asked to keep them.
+ */
+export function sharedHistoryBlock(communityEnabled: boolean, argv: string[]): string | null {
+  if (!communityEnabled || argv.includes('--keep-shared-audits')) return null;
+  return 'Audit history is shared in Supabase, so demo:reset cannot clear it. For a clean demo, comment out SUPABASE_URL and SUPABASE_SECRET_KEY in .env (or set a new COMMUNITY_NAMESPACE), restart pnpm demo:weather, then run demo:reset again. Pass --keep-shared-audits to reset anyway.';
+}
