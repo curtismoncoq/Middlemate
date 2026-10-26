@@ -1,104 +1,136 @@
-# Middlemate
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/middlemate-logo-dark.svg">
+    <img alt="Middlemate" src="docs/assets/middlemate-logo-light.svg" width="420">
+  </picture>
+</p>
 
-**A marketplace where AI agents and people pay per request for LLM inference on Stellar, and providers who lie about what they serve lose their stake.**
+<h3 align="center">Pay per request. Liars get slashed.</h3>
 
-Built in 24 hours for HackMeridian 2026 (Genesis path, Stellar Composed). Everything runs on **Stellar testnet**.
+<p align="center">A marketplace for pay-per-request AI and API endpoints on Stellar. Sellers stake USDC to list, an auditor buys from them in secret, and a seller who lies about what it serves loses its stake, on-chain.</p>
+
+<p align="center"><b>HackMeridian 2026</b> · Genesis path · <b>Stellar Composed</b> track · runs on Stellar testnet · Curtis, Mathieu, Mohamed</p>
 
 ## The problem
 
-x402 lets anyone sell an API per request: no accounts, no API keys. Agents are starting to buy that way on their own. But a buyer can't tell whether the provider is honest: a seller can advertise a large model, serve a tiny one and keep the difference. Agents buying thousands of requests won't notice. Today's catalogs list services; nobody verifies them.
+AI agents now pay for compute on their own. With x402, any URL can sell to any agent per request, with no account and no API key. But a buyer can't check what it gets: a seller can claim a frontier model, serve a 0.5B one and keep the difference, and an agent buying thousands of requests will never notice. Catalogs list services; nobody verifies them.
+
+## What we built
+
+We found no Stellar-native x402 marketplace for inference, so we built one, with a security layer between buyers and sellers:
+
+| Piece | What it does |
+|---|---|
+| **Paywall** | x402 in front of any OpenAI-compatible endpoint, paid in USDC on Stellar. The listed price is read from the endpoint's own 402 answer. |
+| **Registry** | A Soroban contract holds every listing, its stake and its status. One wallet can run several listings, each staked on its own. |
+| **Buyers** | People pay from Freighter in the browser. Agents pay from code under a spending cap, and only buy from listings that are active on-chain. |
+| **Auditor** | A paying customer like any other. It fingerprints answers against reference models and slashes liars. |
 
 ## How it works
 
 ```mermaid
 flowchart LR
   subgraph Buyers
-    H[Human in browser<br/>Freighter via Stellar Wallets Kit]
-    A[AI agent<br/>$20 wallet · $0.50 budget]
+    H[Human in browser<br/>Freighter]
+    A[AI agent<br/>$0.50 budget]
   end
-  W[Middlemate web<br/>catalog · audit log · list form]
-  R[(Soroban registry<br/>register · stake · slash · pause_listing · unregister)]
-  P[Providers<br/>x402 paywalled /v1/chat/completions]
-  AU[Auditor<br/>hidden probes · fingerprints]
-  F[x402 facilitator<br/>settles USDC]
+  W[Middlemate web<br/>catalog · list · dashboard]
+  R[(Soroban registry<br/>stake · slash · pause)]
+  P[Providers<br/>x402-paywalled endpoints]
+  AU[Auditor<br/>hidden paid probes]
   H -- browse --> W
   W -- reads --> R
-  H -- pay per message (x402) --> P
-  A -- reads catalog, checks is_active --> R
-  A -- pay per request (x402) --> P
-  AU -- buys probes like a customer (x402) --> P
-  AU -- slash + pause_listing (auditor role) --> R
-  P -- verify / settle --> F
+  H -- pay per request, x402 --> P
+  A -- checks is_active --> R
+  A -- pay per request, x402 --> P
+  AU -- buys probes like a customer --> P
+  AU -- slash, then pause --> R
 ```
 
-1. **Providers stake.** To list an endpoint, a provider declares the model it serves and a price, and locks USDC in the registry contract (`register`, `stake`).
-2. **Buyers pay per request.** Humans pay from Freighter in the browser. The agent pays from its own wallet under a $0.50 spending policy, although the wallet holds more. Payments go **directly to the provider** over x402 (Soroban auth-entry signing of a USDC transfer); Middlemate is never a middleman.
-3. **The auditor catches liars.** It is a paying customer like any other. It sends randomized hidden probes:
-   - *checkable* probes with known answers (multi-step arithmetic, strict formatting, extraction)
-   - *fingerprint* probes, whose answers are embedded and compared with answers from reference models we can query (MiniMax-M2.7 via API, `llama3.2:3b` and `qwen2.5:0.5b` via Ollama)
+1. **Stake.** To list, a provider names the model it serves and locks USDC in the registry, in one Freighter transaction.
+2. **Pay per request.** Buyers pay each call over x402, straight to the provider. It settles on Stellar in about 10 seconds; Middlemate never holds buyer funds.
+3. **Hidden audit.** The auditor pays for probes like any customer: *checkable* questions with known answers, and *fingerprint* prompts whose answers are compared with reference models. Score = 70% fingerprint match with the claimed model + 30% checkable accuracy, from at least 5 scored probes.
+4. **Slash.** Below 60/100, the auditor (the only wallet with the `auditor` role) calls `slash` (the stake goes to the treasury), then `pause`. The listing leaves the catalog and agents route to an honest one.
 
-   Score = 70% fingerprint match with the claimed model plus 30% checkable accuracy. A verdict needs at least 5 scored probes.
-4. **Cheaters get slashed.** Below 60/100, the auditor (the only wallet holding the `auditor` role) calls `slash` (the full stake goes to the treasury) and `pause_listing`. The card turns red, then disappears, and the agent reroutes to an honest provider.
+## Why the audit works
 
-### Seed listings (all run by us)
+Models leave fingerprints. Each probe is a paid request at temperature 0; its answer is embedded (`nomic-embed-text`) and compared, by cosine similarity, with recorded answers from each reference model (MiniMax-M2.7, `llama3.2:3b`, `qwen2.5:0.5b`, Claude Opus 5.5).
 
-| Listing | Claims | Actually serves | Price |
-|---|---|---|---|
-| Provider A | MiniMax-M2.7 | MiniMax API | $0.02 |
-| Provider B | llama3.2:3b | Ollama llama3.2:3b | $0.004 |
-| **CheapMax** (the cheater) | MiniMax-M2.7 | Ollama **qwen2.5:0.5b** | $0.012 |
+- **Calibration:** 20 of 21 reference answers land nearest their own model (`pnpm calibrate`).
+- **Demo run:** a listing claiming Claude Opus 5.5 but serving `qwen2.5:0.5b` matched qwen at similarity 1.000, scored 0 and was slashed. The two honest listings scored 83 and 100 in the same session.
+- **Economics:** catching CheapClaude cost the auditor $0.06 of probes, against a $5 stake. Reference answers are cached for 24 h, so a round of audits shares one set of reference calls.
+- **Research:** single-token answer distributions tell models apart ([Bruckner, *One Token Is Enough*, 2026](https://arxiv.org/html/2607.10252v1)). Our next step is that method: 30 samples per probe, compared by Jensen–Shannon divergence.
 
-Calibration over 3 rounds: Provider A scored 83/100/83, Provider B 70/85/85, and CheapMax 0/0/0 (every fingerprint probe matched qwen2.5:0.5b at similarity ≈1.0). With the recorded Claude reference added (`pnpm calibrate`, 2026-10-25), MiniMax still matched itself on 6/7 fingerprint probes, Llama and qwen on 7/7, and no answer landed nearest Claude, so listing the qwen endpoint as Claude Opus 5.5 is slashed the same way.
-
-## Proof on testnet
-
-- Registry contract: [`CCW4UFJ7MSNSWOQWZWG3XOF2IVVWVRINK3YCEROH6PDO4LW5ZPA6ELUA`](https://stellar.expert/explorer/testnet/contract/CCW4UFJ7MSNSWOQWZWG3XOF2IVVWVRINK3YCEROH6PDO4LW5ZPA6ELUA). The transactions below ran on the first version, [`CAHJN3…SH2D`](https://stellar.expert/explorer/testnet/contract/CAHJN3HANWQVJUPQO43PXLCCK4ZAA2Y2EOJYTI7WJAO4WYWFB34GSH2D), which had no `unregister`.
-- Additional multi-listing registry: [`CCRBI5…EUXT`](https://stellar.expert/explorer/testnet/contract/CCRBI5SWFCRIFPTJPEEWRO3I6U7DYULTXZXLZFYKOZCWZAGFTPDWEUXT), configured as `LISTING_REGISTRY_CONTRACT_ID`. [Deployment transaction](https://stellar.expert/explorer/testnet/tx/a64cba79b967b8f283be14dcd987a58e9530ae51b0a0bc51ab3450ad5b6ea679).
-- First x402 payment (agent → provider): [`0ddff7b0…`](https://stellar.expert/explorer/testnet/tx/0ddff7b02f53dcfec78df221ed49c7a32b73118bc4e1c00d63aaf23f91ce4c74)
-- Human payment from Freighter in the browser: [`5a602447…`](https://stellar.expert/explorer/testnet/tx/5a6024470f23f42c49ea21a0eeee8ac9f56074787e34f951e7430760d5e9b3b4)
-- **CheapMax slashed by the auditor**: [`abfa5a43…`](https://stellar.expert/explorer/testnet/tx/abfa5a43b63a91bb5acf34b8025615d581624b1a8227c7e81cddc3422214fb4c), delisted: [`e6fcbae4…`](https://stellar.expert/explorer/testnet/tx/e6fcbae4e4730e06c409d1169d62aec8c4c4106f56560aa9b1b3f4ce6880cf30)
+It is a cheap statistical audit that makes cheating expensive, not a proof of which model ran; production would add hardware attestation. See [Honest limits](#honest-limits).
 
 ## Stellar integration
 
-| Layer | What we use |
+| Stellar tool | How Middlemate uses it |
 |---|---|
-| Payments | x402 `exact` scheme on `stellar:testnet` (`@x402/express`, `@x402/fetch`, `@x402/stellar` 2.28), USDC SAC, fee-sponsored settlement |
-| Contract | Soroban (soroban-sdk 28) with **OpenZeppelin Stellar Contracts 0.8**: Access Control (`auditor` role, `#[only_role]`), Pausable (registry-wide emergency stop) |
-| Staking | Stellar Asset Contract (USDC) transfers into and out of the registry |
-| Wallets | **Freighter** via Stellar Wallets Kit: `signAuthEntry` for x402, `signTransaction` for register/stake |
+| **x402** | `exact` scheme on `stellar:testnet` (`@x402/express`, `@x402/fetch`, `@x402/stellar` 2.28), fee-sponsored settlement |
+| **Soroban** | The registry contract (soroban-sdk 28): listings, stakes, slashes, exits |
+| **OpenZeppelin Stellar Contracts 0.8** | Access Control (`auditor` role, `#[only_role]`) and Pausable |
+| **USDC** | Stakes, payments and the treasury, through the Stellar Asset Contract |
+| **Freighter** | Via Stellar Wallets Kit: `signAuthEntry` for x402, `signTransaction` for staking |
 
-## Model registry and audit economics
+## Proof on testnet
 
-- **Only verifiable models can earn trust.** The listing form offers a dropdown of the models the auditor can check (one registry in `@tb/config`: MiniMax-M2.7, llama3.2:3b, qwen2.5:0.5b). "Other" is allowed only with an explicit acknowledgement. Such listings carry an *Unverifiable model* warning and no trust score, the agent skips them by default, and they are never slashed.
-- **An audit costs money on both sides.** The auditor pays every probe like a customer (recorded per audit in the log: catching CheapMax costs about $0.07 of probes, against a $5 stake). It also pays for reference inference from hosted models (MiniMax). Reference answers are cached on disk per prompt for 24 h, so a round of audits shares one set of reference calls. In production, slashed stakes in the treasury plus a listing fee would fund auditing.
+- Registry: [`CCW4UF…ELUA`](https://stellar.expert/explorer/testnet/contract/CCW4UFJ7MSNSWOQWZWG3XOF2IVVWVRINK3YCEROH6PDO4LW5ZPA6ELUA) (first version: [`CAHJN3…SH2D`](https://stellar.expert/explorer/testnet/contract/CAHJN3HANWQVJUPQO43PXLCCK4ZAA2Y2EOJYTI7WJAO4WYWFB34GSH2D)); multi-listing registry: [`CCRBI5…EUXT`](https://stellar.expert/explorer/testnet/contract/CCRBI5SWFCRIFPTJPEEWRO3I6U7DYULTXZXLZFYKOZCWZAGFTPDWEUXT) ([deploy tx](https://stellar.expert/explorer/testnet/tx/a64cba79b967b8f283be14dcd987a58e9530ae51b0a0bc51ab3450ad5b6ea679))
+- Agent pays a provider over x402: [`0ddff7b0…`](https://stellar.expert/explorer/testnet/tx/0ddff7b02f53dcfec78df221ed49c7a32b73118bc4e1c00d63aaf23f91ce4c74)
+- Human pays from Freighter: [`5a602447…`](https://stellar.expert/explorer/testnet/tx/5a6024470f23f42c49ea21a0eeee8ac9f56074787e34f951e7430760d5e9b3b4)
+- CheapClaude (claims Claude Opus 5.5, serves qwen2.5:0.5b) slashed: [`e04be654…`](https://stellar.expert/explorer/testnet/tx/e04be6547a9fcb551fca897d84c8fce2e95dbdbb64fdfccc14e71edb4317103e), delisted: [`18fbae03…`](https://stellar.expert/explorer/testnet/tx/18fbae03329a21bc0d1adb228fae2550f34bed96c2e9f0a54113bbafb8727c44)
+- CheapMax (claims MiniMax, serves qwen2.5:0.5b) slashed: [`abfa5a43…`](https://stellar.expert/explorer/testnet/tx/abfa5a43b63a91bb5acf34b8025615d581624b1a8227c7e81cddc3422214fb4c), delisted: [`e6fcbae4…`](https://stellar.expert/explorer/testnet/tx/e6fcbae4e4730e06c409d1169d62aec8c4c4106f56560aa9b1b3f4ce6880cf30)
+
+## Beyond LLMs: weather first
+
+The same rule works for any paid API: a schema, a reference to check against, a stake to lose. A weather API declares `api:weather@1` and the fields it serves; the auditor buys forecasts and compares each field with [MET Norway](https://api.met.no/weatherapi/locationforecast/2.0/) within published tolerances. Forecasts can honestly differ, so a disagreement opens a review with evidence instead of an automatic slash. Next categories: prices and FX, maps and geocoding, search.
 
 ## Run it
 
-Requirements: Node 25+, pnpm, Rust with `wasm32v1-none`, stellar-cli 28, Ollama, and a MiniMax API key.
+Requirements: Node 25+, pnpm, Rust with `wasm32v1-none`, stellar-cli 28, Ollama, a MiniMax API key.
 
 ```bash
 pnpm install
 ollama pull llama3.2:3b && ollama pull qwen2.5:0.5b && ollama pull nomic-embed-text
-./scripts/setup-keys.sh                     # 7 testnet identities, funded, with USDC trustlines → .env
+./scripts/setup-keys.sh          # testnet identities, funded, with USDC trustlines → .env
 echo 'MINIMAX_API_KEY=…' >> .env
 # send testnet USDC (faucet.circle.com): 6 to each provider, 1 to the auditor, 0.50 to the agent
-pnpm check-env                              # balances, Ollama models, MiniMax key
-./scripts/deploy-registry.sh                # deploys the contract, writes REGISTRY_CONTRACT_ID
-pnpm seed                                   # registers and stakes the three listings
-pnpm dev                                    # web :3000, providers :4001, auditor :4002
-pnpm agent                                  # the agent buys a summary
-pnpm agent --try-overspend                  # the budget rejects a $2.00 job
-pnpm demo:reset                             # reset legacy listings; withdraw new listings from Dashboard first
+pnpm check-env                   # balances, Ollama models, MiniMax key
+./scripts/deploy-registry.sh     # deploys the registry, writes REGISTRY_CONTRACT_ID
+pnpm dev                         # web :3000, providers :4001, auditor :4002 (pnpm demo:weather adds weather APIs)
+pnpm demo:reset                  # clean catalog: one audited listing (Provider A)
+pnpm agent                       # the agent buys a summary
+pnpm agent --try-overspend       # the budget refuses a $2.00 job
 ```
 
-Tests: `pnpm test` and `cargo test -p registry`. The video walkthrough and weather verification steps are in [`docs/demo-runbook.md`](docs/demo-runbook.md).
+Then open http://localhost:3000, list an endpoint from **List an endpoint**, and watch the audit run. Seed endpoints served by `pnpm dev`:
 
-Shared reviews, reports and audit history use Supabase. Follow [`docs/supabase-setup.md`](docs/supabase-setup.md), run the versioned SQL migration, configure the root `.env`, then use `pnpm community:check` and optionally `pnpm community:import-audits`. User reviews, observed technical reliability and MET Norway concordance are separate signals. Community actions use a wallet-signed message; API sanctions require human moderation and a separate signed approval for chain actions.
+| Endpoint | Claims | Actually serves | Price |
+|---|---|---|---|
+| `/minimax-a` (Provider A) | MiniMax-M2.7 | MiniMax API | $0.02 |
+| `/llama-b` (Provider B) | llama3.2:3b | llama3.2:3b | $0.004 |
+| `/cheapmax` (the cheater) | MiniMax-M2.7, or list it as Claude Opus 5.5 | **qwen2.5:0.5b** | $0.012 |
+
+Tests: `pnpm test`, `pnpm typecheck`, `cargo test -p registry`. The full demo walkthrough is [`docs/demo-runbook.md`](docs/demo-runbook.md) (or run `scripts/record-demo.sh`). Optional shared reviews and moderation for API listings use Supabase: [`docs/supabase-setup.md`](docs/supabase-setup.md).
+
+## Repository
+
+```text
+contracts/registry/     Soroban registry (OpenZeppelin access control + pausable)
+apps/web/               Next.js marketplace: catalog, list form, dashboard
+apps/providers/         x402-paywalled seed endpoints and weather demos
+apps/auditor/           probes, fingerprinting, scoring, slashing
+apps/agent/             a budget-capped buyer agent
+packages/               registry client, x402 client, config, weather contract, community
+docs/                   design spec, demo runbook, art direction
+video/                  motion pieces for the demo video (HyperFrames)
+```
 
 ## Honest limits
 
-- **Community notification counts require a verified wallet session** and migration `202610260002_community_reads.sql`. They cover provider reviews, reports and completed moderation decisions; they refresh every 10 seconds in the open dashboard and clear only on explicit acknowledgement.
+Everything below is a known limit of the hackathon build, stated so nobody has to discover it.
 
+- **Community notification counts require a verified wallet session** and migration `202610260002_community_reads.sql`. They cover provider reviews, reports and completed moderation decisions; they refresh every 10 seconds in the open dashboard and clear only on explicit acknowledgement.
 - **The audit is statistical.** It can produce false positives and false negatives. MiniMax answers vary between runs (one of Provider A's probes landed nearest qwen), which is why the score blends several probes and a verdict needs at least 5 of them.
 - **A smart cheater could detect probes**, or forward probes to the real model while serving cheap answers to everyone else. Randomized prompts drawn from a pool, plus probes paid like normal traffic, reduce this but don't remove it.
 - **We can only verify models we can query as a reference.** A listing that claims anything else is marked *Unverifiable* and is never slashed. Hosted closed models can be added the same way MiniMax is (query the vendor's official API as the reference), given an API key.
@@ -128,7 +160,8 @@ Shared reviews, reports and audit history use Supabase. Follow [`docs/supabase-s
 
 ## What's next
 
-- On-chain agent spending caps through OpenZeppelin smart accounts once the facilitator fix lands.
-- Add more API categories only with explicit request/response contracts and category-specific audit rules.
-- Reputation over time instead of single-round verdicts, unstake with a cooldown, and audits that third parties can run and challenge.
-- A trust layer any x402 seller can plug into, not just this catalog.
+- On-chain agent spending caps with OpenZeppelin smart accounts, once the x402 facilitator fix lands.
+- Distribution fingerprints (30 samples per probe, Jensen–Shannon divergence), paraphrased probes mixed into real traffic.
+- More API categories, each with an explicit schema and its own reference.
+- A governed model registry, reputation over time, and audits that third parties can run and challenge.
+- A trust layer any x402 seller can plug into, then mainnet.
