@@ -296,14 +296,26 @@ warn "Unregisters every legacy listing (stakes refunded), seeds Provider A,"
 warn "audits it once (~1 min), resets the agent budget to \$0.50 and the audit log."
 note "It also warms every Ollama model for 30 min."
 if confirm "Run pnpm demo:reset now?"; then
-  until (cd "$REPO_ROOT" && pnpm demo:reset); do
+  reset_log=$(mktemp)
+  until (cd "$REPO_ROOT" && pnpm demo:reset 2>&1 | tee "$reset_log"; exit "${PIPESTATUS[0]}"); do
     say ""
-    note "Audit history shared in Supabase: comment out SUPABASE_URL and SUPABASE_SECRET_KEY"
-    note "in .env, then rerun this wizard (it restarts the stack)."
-    note "A leftover listing (e.g. Honest Llama): open http://localhost:3000/dashboard with that"
-    note "wallet in Freighter, Remove & unstake, wait 10 s, Withdraw. A slashed CheapClaude is fine."
-    confirm "Fixed it? Run demo:reset again?" || { SKIPPED+=("pnpm demo:reset (failed)"); break; }
+    if grep -q 'shared in Supabase' "$reset_log"; then
+      warn "Audit history is shared in Supabase."
+      note "Comment out SUPABASE_URL and SUPABASE_SECRET_KEY in .env, restart the stack window"
+      note "(Ctrl-C, then pnpm demo:weather), then answer y below."
+    elif grep -q '^Still listed' "$reset_log"; then
+      warn "Only each listing's owner can remove it. Owners named above:"
+      grep -o '([A-Z0-9]\{4\}…[A-Z0-9]\{4\})' "$reset_log" | sort -u | sed 's/^/     wallet /'
+      note "For each wallet: switch Freighter to it, open http://localhost:3000/dashboard,"
+      note "Remove & unstake each of its listings (wait 10 s; Withdraw can come later)."
+      note "A wallet that isn't yours: ask its owner to do the same."
+      open_url "http://localhost:3000/dashboard"
+    else
+      warn "Reset failed; read the message above."
+    fi
+    confirm "Done? Run demo:reset again (y), or skip it (n)?" || { SKIPPED+=("pnpm demo:reset (failed)"); break; }
   done
+  rm -f "$reset_log"
 else
   SKIPPED+=("pnpm demo:reset")
 fi
