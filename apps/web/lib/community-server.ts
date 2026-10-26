@@ -47,7 +47,7 @@ export async function challenge(req: Request, wallet: string, purpose = 'login',
   const id = randomUUID();
   const expires = new Date(Date.now() + 5 * 60000).toISOString();
   const origin = new URL(req.url).origin;
-  const message = `TrustBazaar\n${detail}\nOrigin: ${origin}\nNetwork: stellar:testnet\nNamespace: ${db.namespace}\nWallet: ${wallet}\nPurpose: ${purpose}\nNonce: ${id}\nExpires: ${expires}`;
+  const message = `Middlemate\n${detail}\nOrigin: ${origin}\nNetwork: stellar:testnet\nNamespace: ${db.namespace}\nWallet: ${wallet}\nPurpose: ${purpose}\nNonce: ${id}\nExpires: ${expires}`;
   await db.insert('community_challenges', { id, wallet, origin, purpose, message, expires_at: expires });
   return { id, message, expires };
 }

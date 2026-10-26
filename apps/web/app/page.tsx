@@ -62,7 +62,7 @@ export default function CatalogPage() {
   return (
     <>
       <section className="stage hero">
-        <p className="wordmark">TrustBazaar <span>Stellar Testnet</span></p>
+        <p className="wordmark">Middlemate <span>Stellar Testnet</span></p>
         <h1 className="display">Pay per request.<br />Liars get slashed.</h1>
         <div className="street" aria-label="The stalls on the street">
           {street.length === 0 ? (

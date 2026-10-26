@@ -162,9 +162,10 @@ export function createRunner(deps: Deps) {
       verdict = computeVerdict(l.claimedModel, probes, deps.referenceModels);
       spentAtomic = String(BigInt(probes.filter((p) => p.status === 'ok' && p.txHash).length) * l.priceAtomic);
     }
-
     const rec: AuditRecord = { id: `${Date.now()}-${listingKey(l).slice(0, 8)}`, listingId: l.id, at: new Date().toISOString(), provider: l.provider, name: l.name, claimedModel: l.claimedModel, verdict, probes, spentAtomic, ...(weather ? { weather } : {}) };
-    say(l, `score ${verdict.score} matched ${verdict.matchedModel} → ${verdict.unverifiable ? 'UNVERIFIABLE (no reference for ' + l.claimedModel + ')' : verdict.inconclusive ? 'INCONCLUSIVE' : verdict.pass ? 'PASS' : 'FAIL'}`);
+    say(l, verdict.unverifiable ? `UNVERIFIABLE (no reference for ${l.claimedModel})`
+      : verdict.inconclusive ? `NOT SCORED (${verdict.scored} of ${probes.length} probes answered)`
+      : `score ${verdict.score} matched ${verdict.matchedModel} → ${verdict.pass ? 'PASS' : 'FAIL'}`);
     if (isWeather && !verdict.pass && !verdict.inconclusive) say(l, 'MET Norway disagreement recorded for review — no automatic financial sanction');
     const shouldSlash = !isWeather && !verdict.pass;
     if (shouldSlash) {

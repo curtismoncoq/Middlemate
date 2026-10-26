@@ -70,6 +70,6 @@ describe('MET Norway weather contract', () => {
     expect(second).toEqual(first);
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(String(fetcher.mock.calls[0][0])).toContain('lat=38.7223&lon=-9.1393');
-    expect((fetcher.mock.calls[0][1] as RequestInit).headers).toMatchObject({ 'user-agent': expect.stringContaining('TrustBazaar') });
+    expect((fetcher.mock.calls[0][1] as RequestInit).headers).toMatchObject({ 'user-agent': expect.stringContaining('Middlemate') });
   });
 });

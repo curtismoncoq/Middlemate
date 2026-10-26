@@ -1,5 +1,5 @@
 {
-  "name": "trustbazaar",
+  "name": "middlemate",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.33.1",
@@ -14,7 +14,9 @@
     "agent": "cd apps/agent && tsx src/main.ts",
     "demo:reset": "tsx scripts/demo-reset.ts",
     "demo:weather": "scripts/weather-demo.sh",
-    "seed": "tsx scripts/seed-listings.ts"
+    "seed": "tsx scripts/seed-listings.ts",
+    "record:claude": "tsx scripts/record-claude-reference.ts",
+    "calibrate": "tsx scripts/calibrate-references.ts"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.11",

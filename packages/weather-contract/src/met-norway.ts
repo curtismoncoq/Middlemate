@@ -27,7 +27,7 @@ export function createMetNorwayClient(options: {
 } = {}) {
   const fetcher = options.fetch ?? fetch;
   const now = options.now ?? Date.now;
-  const userAgent = options.userAgent ?? 'TrustBazaar/1.0 github.com/curtismoncoq/TrustBazaar';
+  const userAgent = options.userAgent ?? 'Middlemate/1.0 github.com/curtismoncoq/Middlemate';
   const baseUrl = options.baseUrl ?? 'https://api.met.no/weatherapi/locationforecast/2.0/complete';
   const cache = new Map<string, CacheEntry>();
 

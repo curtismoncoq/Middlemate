@@ -15,6 +15,14 @@ const pass = { at, score: 100, matchedModel: 'MiniMax-M2.7', confidence: 1, pass
 const slash = { at, score: 0, matchedModel: 'qwen2.5:0.5b', confidence: 1, pass: false, slashTx: 'abc', slashedAtomic: '50000000' };
 
 describe('stallView', () => {
+  it('a draft with no price yet shows a dash on its price board, not $0', () => {
+    expect(stallView({ ...base, priceAtomic: '0' }).price).toBe('—');
+  });
+  it('an audit that scored too few probes is not shown as trusted', () => {
+    const unscored = { at, score: 100, matchedModel: 'MiniMax-M2.7', confidence: 0, pass: true, inconclusive: true, scored: 0 };
+    expect(stallView({ ...base, lastAudit: unscored })).toMatchObject({ state: 'unscored', placard: ['NOT', 'SCORED'] });
+    expect(streetStatus([{ ...base, lastAudit: unscored }, { ...base, provider: 'GB', lastAudit: pass }], idle, now)).toBe('1 of 2 stalls audited.');
+  });
   it('an audited stall is open, with its trust on the door placard', () => {
     expect(stallView({ ...base, lastAudit: pass })).toMatchObject({ sign: 'PROVIDER A', window: 'MINIMAX-M2.7', price: '$0.02', state: 'open', placard: ['TRUST', '100'] });
   });

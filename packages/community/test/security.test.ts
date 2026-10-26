@@ -7,7 +7,7 @@ import { recoverReceipt, receiptProof, verifySettlement } from '../src/receipts.
 
 afterEach(()=>vi.unstubAllGlobals());
 it('verifies SEP-53 ownership signatures and rejects another wallet or modified message',()=>{
-  const key=Keypair.random();const message='TrustBazaar\nOrigin: http://localhost:3000\nNonce: unique';
+  const key=Keypair.random();const message='Middlemate\nOrigin: http://localhost:3000\nNonce: unique';
   const signature=key.sign(createHash('sha256').update(`Stellar Signed Message:\n${message}`).digest()).toString('base64');
   expect(verifyWalletMessage(key.publicKey(),message,signature)).toBe(true);
   expect(verifyWalletMessage(Keypair.random().publicKey(),message,signature)).toBe(false);

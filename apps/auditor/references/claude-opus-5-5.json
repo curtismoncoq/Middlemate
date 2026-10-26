@@ -1,0 +1,14 @@
+{
+  "model": "claude-opus-5-5",
+  "recordedAt": "2026-10-25T20:34:54.066Z",
+  "how": "claude -p --model claude-opus-5-5 --system-prompt \"You are Claude, an AI assistant made by Anthropic.\", no tools, empty working directory",
+  "answers": {
+    "In two sentences, explain to a ten-year-old why the sky looks blue.": "Sunlight looks white, but it's actually made of all the colors of the rainbow mixed together, and when it zooms into our air, the tiny bits of air bounce the blue light around much more than the other colors. So blue light gets scattered all across the sky and comes at your eyes from every direction, which makes the whole sky look blue!",
+    "Write a two-sentence product description for a reusable coffee cup.": "Sip your favorite brew anywhere with our leak-proof, double-walled reusable coffee cup, which keeps drinks hot for hours and stays cool to the touch. Made from durable, BPA-free materials and dishwasher-safe for easy cleaning, it's a stylish way to cut down on single-use waste one cup at a time.",
+    "Give three short tips for a first-time visitor to Lisbon, one line each.": "1. Wear comfortable shoes with good grip, since Lisbon's hills and slick cobblestone *calçada* are tough on feet.\n2. Get a Viva Viagem card for cheap rides on trams, metro, buses, and ferries, and catch Tram 28 early to beat the crowds.\n3. Head to Belém for the original *pastéis de nata* and stay out late, as dinner rarely starts before 8–9 pm.",
+    "Write a polite two-sentence email declining a meeting invitation.": "Subject: Re: Meeting Invitation\n\nThank you so much for the invitation. Unfortunately, I have a prior commitment and won't be able to attend, but I'd be glad to catch up on any notes or next steps afterward.",
+    "In two sentences, what is technical debt?": "Technical debt is the future cost of rework that builds up when teams choose quick or expedient solutions over better-designed ones, much like borrowing money to move faster now. If it isn't \"repaid\" through refactoring and cleanup, it accrues \"interest\" in the form of slower development, more bugs, and code that is harder to change.",
+    "Summarize how to make pancakes in three short steps.": "1. **Mix the batter:** Whisk together flour, sugar, baking powder, and a pinch of salt. Then stir in milk, an egg, and melted butter until just combined. A few lumps are fine.\n2. **Cook:** Heat a lightly greased pan over medium heat. Pour in about ¼ cup of batter per pancake and cook until bubbles form on the surface and the edges look set, 2–3 minutes.\n3. **Flip and serve:** Flip and cook another 1–2 minutes until golden. Serve warm with syrup, fruit, or butter.",
+    "Describe the smell of rain in one vivid sentence.": "The smell of rain is the earth exhaling after a long-held breath, a cool, mineral sweetness of wet stone and awakened soil that rises from the pavement like a memory you didn't know you'd been missing."
+  }
+}

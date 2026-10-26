@@ -1,6 +1,6 @@
 # Art direction
 
-TrustBazaar is a **dark street at night**. Every listing is a stall on that street. The page is set in condensed capitals, uses one lime light, and navigates with a stack of colour tiles. The tokens live in `apps/web/app/globals.css` (`:root`); use them by name rather than as raw hex values.
+Middlemate is a **dark street at night**. Every listing is a stall on that street. The page is set in condensed capitals, uses one lime light, and navigates with a stack of colour tiles. The tokens live in `apps/web/app/globals.css` (`:root`); use them by name rather than as raw hex values.
 
 ## Colour
 
@@ -65,6 +65,7 @@ Rules:
 | `review` (no audit yet) | UNDER REVIEW (amber) | amber |
 | `auditing` | PROBE 3/6 (amber) + pulsing lamp | amber |
 | `unverifiable` | NOT VERIFIED (amber) | grey |
+| `unscored` (audit answered too few probes) | NOT SCORED (amber), never a trust number | amber |
 | `api` | SCHEMA DECLARED (grey) | lime |
 | `slashed` | shutter rolls down, red tape `SLASHED · STAKE 5 → 0`, price struck through | — |
 

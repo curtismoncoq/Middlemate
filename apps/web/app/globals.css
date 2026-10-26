@@ -1,4 +1,4 @@
-/* TrustBazaar: a dark street at night. Condensed caps, one lime light, colour tiles for navigation. */
+/* Middlemate: a dark street at night. Condensed caps, one lime light, colour tiles for navigation. */
 :root {
   --frame: #141414;
   --stage: #232323;
@@ -97,7 +97,7 @@ a { color: var(--lime); }
 .st-shelf { fill: #3d3d3d; }
 .st-led { fill: var(--lime); }
 .st-led--blink { animation: blink 1.8s steps(2, jump-none) infinite; }
-.stall--review .st-led, .stall--auditing .st-led, .stall--unverifiable .st-led { fill: var(--warning); }
+.stall--review .st-led, .stall--auditing .st-led, .stall--unscored .st-led, .stall--unverifiable .st-led { fill: var(--warning); }
 .stall--unverifiable .st-led { fill: #6a6a6a; }
 .st-door { fill: #252525; stroke: #3d3d3d; stroke-width: 6; }
 .st-door__glass { fill: #161616; }
@@ -106,7 +106,7 @@ a { color: var(--lime); }
 .st-placard rect { fill: #0e0e0e; stroke: #4a4a4a; stroke-width: 1.5; }
 .st-placard__l1 { font-size: 11px; font-weight: 600; fill: #cfcfcf; letter-spacing: 1px; }
 .st-placard__l2 { font: 700 15px var(--font-display), sans-serif; fill: var(--lime); }
-.stall--review .st-placard__l2, .stall--auditing .st-placard__l2, .stall--unverifiable .st-placard__l2 { fill: var(--warning); }
+.stall--review .st-placard__l2, .stall--auditing .st-placard__l2, .stall--unscored .st-placard__l2, .stall--unverifiable .st-placard__l2 { fill: var(--warning); }
 .stall--api .st-placard__l2 { fill: #d8d8d8; }
 .stall--slashed .st-placard__l2 { fill: var(--negative); }
 .st-board rect { fill: #0e0e0e; }
@@ -207,6 +207,9 @@ a { color: var(--lime); }
 .field input::placeholder { color: #8c8c8c; }
 .field input:focus, .field select:focus { outline: 2px solid var(--lime); outline-offset: -2px; border-color: var(--lime); }
 .field__help { font-size: 14px; font-weight: 400; color: var(--muted); }
+.price-read { min-height: 48px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 14px; background: var(--well); }
+.price-read b { font-family: var(--font-display); font-size: 28px; line-height: 1; color: var(--lime); font-variant-numeric: tabular-nums; }
+.price-read span { font-size: 14px; font-weight: 400; color: var(--muted); }
 .field__error { font-size: 14px; font-weight: 400; color: var(--negative); margin: 0; }
 .check { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--muted); }
 .segmented { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; }

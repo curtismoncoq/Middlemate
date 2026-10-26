@@ -13,6 +13,12 @@ const base: ApiListing = {
 };
 
 describe('ListingCard', () => {
+  it('shows an audit that scored too few probes as not scored, with no trust meter', () => {
+    render(<ListingCard listing={{ ...base, lastAudit: { at: '2026-10-25T15:03:00Z', score: 100, matchedModel: 'MiniMax-M2.7', confidence: 0, pass: true, inconclusive: true, scored: 0 } }} now={Date.now()} />);
+    expect(screen.getByText('Not scored')).toBeTruthy();
+    expect(screen.getByText(/0 of 6 probes answered/)).toBeTruthy();
+    expect(screen.queryByRole('meter')).toBeNull();
+  });
   it('renders distinct names for several endpoints owned by the same wallet', () => {
     render(<Catalog now={Date.now()} state={{ status: 'ok', listings: [{ ...base, id: 'a', name: 'Mat temperature' }, { ...base, id: 'b', name: 'Mat rain' }] }} />);
     expect(screen.getByRole('heading', { name: 'Mat temperature' })).toBeTruthy();

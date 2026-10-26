@@ -1,3 +1,5 @@
+import { OLLAMA_KEEP_ALIVE } from '@tb/config';
+
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 export type Backend = (messages: ChatMessage[], opts?: { temperature?: number }) => Promise<string>;
 
@@ -26,7 +28,7 @@ export function ollamaBackend(url: string, model: string): Backend {
     const r = await fetch(`${url}/api/chat`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model, messages, stream: false, options: { temperature: opts.temperature ?? 0, seed: 7 } }),
+      body: JSON.stringify({ model, messages, stream: false, keep_alive: OLLAMA_KEEP_ALIVE, options: { temperature: opts.temperature ?? 0, seed: 7 } }),
       signal: AbortSignal.timeout(90_000),
     });
     if (!r.ok) throw new Error(`ollama ${model} HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);

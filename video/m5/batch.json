@@ -1,0 +1,22 @@
+[
+  {
+    "label": "Slash tx",
+    "value": "abfa5a43…",
+    "tone": "negative"
+  },
+  {
+    "label": "Trust score",
+    "value": "0",
+    "tone": "negative"
+  },
+  {
+    "label": "Agent budget",
+    "value": "REJECTED",
+    "tone": "negative"
+  },
+  {
+    "label": "Paid",
+    "value": "$0.004 · tx",
+    "tone": "lime"
+  }
+]
