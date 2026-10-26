@@ -5,7 +5,7 @@ The story is that an honest provider and a cheater both list live, and the audit
 ## Before recording
 
 1. `pnpm demo:weather` (the same as `pnpm dev`, plus four weather fixtures on :4003–4006). It starts the web app (:3000), providers (:4001), auditor (:4002) and live MET Norway-backed demos.
-2. `pnpm demo:reset` in a second terminal. It warms every Ollama model (kept loaded 30 min, so nothing cold-starts on camera), unregisters legacy listings (stakes refunded), seeds Provider A, audits it once (about a minute), and resets the agent's $0.50 budget and the audit log. The catalog opens on one green, audited card. Listings made from `/list` can only be removed by their owner: if one is still listed (Honest Llama), reset stops and names it with its wallet; remove it from Dashboard in that Freighter account (the 10 s grace is enough) and run reset again. A slashed CheapClaude doesn't block reset.
+2. `pnpm demo:reset` in a second terminal. It warms every Ollama model (kept loaded 30 min, so nothing cold-starts on camera), unregisters legacy listings (stakes refunded), seeds Provider A, audits it once (about a minute), and resets the agent's $0.50 budget and the audit log. The catalog opens on one green, audited card. Listings made from `/list` (Honest Llama, weather listings) can only be withdrawn by their owner, so reset has the auditor pause them: they leave the catalog, their stake stays locked to the owner, who can withdraw it from Dashboard at any time. A paused listing can't be resumed; list it again instead.
 3. If you record more than 30 min after the reset, warm Ollama again: `ollama run llama3.2:3b "hi"` and `ollama run qwen2.5:0.5b "hi"`.
 4. Freighter on **Testnet** with two accounts, each holding USDC (stake plus a little for Try it):
    - **wallet 1 (honest)** lists `llama3.2:3b`;
@@ -62,7 +62,7 @@ Built in HyperFrames in `video/` (see `video/README.md`); `sh video/render.sh` r
 
 ## Retakes
 
-- **R4 burns the cheater's stake.** It goes to the treasury, and every audit spends some of the auditor's USDC. To redo R4: remove Honest Llama from Dashboard (wallet 1), run `pnpm demo:reset`, top up wallet 2 if needed, and record R2 onwards again.
+- **R4 burns the cheater's stake.** It goes to the treasury, and every audit spends some of the auditor's USDC. To redo R4: run `pnpm demo:reset` (it pauses Honest Llama; withdraw its stake from Dashboard with wallet 1 if wallet 1 runs low), top up wallet 2 if needed, and record R2 onwards again.
 - **R2 or R3 only:** use Dashboard → Remove & unstake, wait for the grace to expire, then confirm Withdraw before relisting. Legacy entries refund immediately through their unregister action.
 - **A payment hangs for more than 30 s:** the testnet RPC is slow. Cut and retake; nothing was charged unless a tx hash appeared.
 - **An honest provider scores low:** re-run its audit with **Run audit now**. The README explains why the test is statistical.

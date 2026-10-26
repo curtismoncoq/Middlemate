@@ -198,6 +198,65 @@ finish() {
 # the whole file before the first prompt, so an edit mid-run can't break it.
 # ──────────────────────────────────────────────────────────────────────────
 
+# ── Demo helpers ─────────────────────────────────────────────────────────
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+STACK_PORTS=(3000 4001 4002 4003 4004 4005 4006)
+
+# port_up PORT: something is listening on it.
+port_up() { lsof -iTCP:"$1" -sTCP:LISTEN -t >/dev/null 2>&1; }
+
+# wait_for_ports SECONDS PORT...: polls until every port listens; fails on timeout.
+wait_for_ports() {
+  local limit="$1" waited=0 missing; shift
+  while :; do
+    missing=()
+    for p in "$@"; do port_up "$p" || missing+=("$p"); done
+    (( ${#missing[@]} == 0 )) && { printf '\r  %s✓ all up%s: %s%*s\n' "$GREEN" "$RESET" "$*" 20 ''; return 0; }
+    (( waited >= limit )) && { printf '\n'; warn "still down after ${limit}s: ${missing[*]}"; return 1; }
+    printf '\r  %swaiting for %s (%ss)%s   ' "$DIM" "$(printf ':%s ' "${missing[@]}")" "$waited" "$RESET"
+    sleep 2; waited=$((waited + 2))
+  done
+}
+
+# open_terminal "command": runs it in a new, visible Terminal window at the repo root,
+# so it can be recorded and stopped with Ctrl-C. Falls back to a background job.
+open_terminal() {
+  local cmd="cd '$REPO_ROOT' && $1"
+  if command -v osascript >/dev/null 2>&1; then
+    osascript -e "tell application \"Terminal\" to do script \"${cmd//\"/\\\"}\"" -e 'tell application "Terminal" to activate' >/dev/null
+    printf '  %s↗ opened a Terminal window:%s %s\n' "$GREEN" "$RESET" "$1"
+  else
+    mkdir -p "$REPO_ROOT/.logs"
+    (cd "$REPO_ROOT" && nohup bash -c "$1" > .logs/stack.out 2>&1 &)
+    printf '  %s✓ started in the background:%s %s (log: .logs/stack.out)\n' "$GREEN" "$RESET" "$1"
+    note "No Terminal app here: for R9 run  tail -f .logs/auditor.log  in a window you record."
+  fi
+}
+
+# precompile PATH...: loads each page once so Next.js compiles it before the camera rolls.
+precompile() {
+  for p in "$@"; do
+    if curl -fsS -o /dev/null --max-time 120 "http://localhost:3000$p"; then note "compiled $p"; else warn "could not load $p"; fi
+  done
+}
+
+# open_code FILE PATTERN: opens FILE in the editor at the first line matching PATTERN.
+open_code() {
+  local line editor
+  line=$(grep -n -m1 -- "$2" "$REPO_ROOT/$1" | cut -d: -f1); line=${line:-1}
+  for editor in cursor code; do
+    if command -v "$editor" >/dev/null 2>&1; then "$editor" -g "$REPO_ROOT/$1:$line"; note "opened $1:$line in $editor"; return; fi
+  done
+  note "open $1 at line $line"
+}
+
+# run_cmd "command": shows it, runs it at the repo root, and reports a failure without exiting.
+run_cmd() {
+  printf '  %s$ %s%s\n' "$BOLD" "$1" "$RESET"
+  (cd "$REPO_ROOT" && bash -c "$1") || warn "'$1' exited with an error; read the output above"
+}
+
 run_wizard() {
 
 TOTAL_STAGES=14
@@ -205,7 +264,8 @@ TOTAL_STAGES=14
 banner "Middlemate demo recording (R1–R10, M1–M6)"
 
 stage "Preflight: capture setup"
-say "Nothing is written to .env; this wizard only guides the recording."
+say "Nothing is written to .env. The wizard runs every command; you drive the browser,"
+say "Freighter and the recorder."
 step "Screen capture at 1440p or higher (Screen Studio gives cursor zoom)."
 step "Browser at 125% zoom, bookmarks bar hidden. Terminal font about 20 pt."
 step "Freighter on Testnet with two accounts, each holding USDC:"
@@ -214,36 +274,53 @@ say "     wallet 2 (cheater) -> lists CheapClaude"
 note "USDC: faucet.circle.com (Stellar testnet). Keep Freighter popups in frame."
 pause "All set? Enter to continue"
 
-stage "Terminal 1: start the stack"
-say "Open a NEW terminal in the repo root and run:"
-step "pnpm demo:weather"
-say "Starts web :3000, providers :4001, auditor :4002, weather fixtures :4003-4006."
-note "Leave it running and visible: its probe lines are clip R9."
-pause "Stack is up? Enter to continue"
+stage "Start the stack"
+say "Starts web :3000, providers :4001, auditor :4002, weather fixtures :4003-4006"
+say "in a new Terminal window. Leave it visible: its probe lines are clip R9."
+note "Stop it any time with Ctrl-C in that window."
+if port_up 3000 || port_up 4002; then
+  warn "A stack is already running. Restarting it loads the current .env."
+  confirm "Restart it?" && { for p in "${STACK_PORTS[@]}"; do lsof -iTCP:$p -sTCP:LISTEN -t 2>/dev/null | xargs kill 2>/dev/null || true; done; sleep 2; }
+fi
+if ! port_up 4002; then open_terminal "pnpm demo:weather"; fi
+if wait_for_ports 120 "${STACK_PORTS[@]}"; then
+  say "Compiling the pages once so the first load on camera is instant…"
+  precompile / /list /dashboard
+else
+  warn "Look at the stack window (or .logs/*.log), fix it, then continue."
+fi
+pause "Enter to continue"
 
-stage "Terminal 2: reset the whole project"
-warn "Unregisters every legacy listing (stakes refunded), seeds Provider A,"
+stage "Reset the whole project"
+warn "Unregisters every legacy listing (stakes refunded), pauses listings made from /list"
+warn "(their stake stays with the owner, withdrawable from Dashboard), seeds Provider A,"
 warn "audits it once (~1 min), resets the agent budget to \$0.50 and the audit log."
+note "It also warms every Ollama model for 30 min."
 if confirm "Run pnpm demo:reset now?"; then
-  pnpm demo:reset || warn "reset failed; read the message above"
+  reset_log=$(mktemp)
+  until (cd "$REPO_ROOT" && pnpm demo:reset 2>&1 | tee "$reset_log"; exit "${PIPESTATUS[0]}"); do
+    say ""
+    if grep -q 'shared in Supabase' "$reset_log"; then
+      warn "Audit history is shared in Supabase."
+      note "Comment out SUPABASE_URL and SUPABASE_SECRET_KEY in .env, restart the stack window"
+      note "(Ctrl-C, then pnpm demo:weather), then answer y below."
+    else
+      warn "Reset failed; read the message above."
+    fi
+    confirm "Done? Run demo:reset again (y), or skip it (n)?" || { SKIPPED+=("pnpm demo:reset (failed)"); break; }
+  done
+  rm -f "$reset_log"
 else
   SKIPPED+=("pnpm demo:reset")
 fi
-say ""
-note "If it says audit history is shared in Supabase: comment out SUPABASE_URL and"
-note "SUPABASE_SECRET_KEY in .env, restart Terminal 1, and run it again."
-note "If it stops naming a leftover listing (e.g. Honest Llama): open"
-note "http://localhost:3000/dashboard with that wallet in Freighter, Remove & unstake,"
-note "wait 10 s, Withdraw, then rerun: pnpm demo:reset. A slashed CheapClaude is fine."
-pause "Reset finished cleanly? Enter to continue"
+pause "Enter to continue"
 
 stage "Check balances"
-if confirm "Run pnpm check-env now?"; then
-  pnpm check-env || warn "check-env reported a problem"
-fi
+run_cmd "pnpm check-env"
 say "Agent and auditor each need USDC (one entry audit costs the auditor a few cents)."
-note "Over 30 min since reset? Warm Ollama again:"
-note "  ollama run llama3.2:3b \"hi\"   and   ollama run qwen2.5:0.5b \"hi\""
+note "USDC: faucet.circle.com (Stellar testnet)."
+note "Recording more than 30 min after the reset? Rerun this wizard's reset, or:"
+note "  ollama run llama3.2:3b hi; ollama run qwen2.5:0.5b hi"
 pause "Balances OK? Enter to continue"
 
 stage "R1 · Catalog after reset (15 s)"
@@ -272,14 +349,14 @@ pause "R3 saved? Enter to continue"
 
 stage "R4 + R9 · The cheater, wallet 2 (2-3 min)"
 warn "IRREVERSIBLE: the slash burns the stake to the treasury and spends auditor USDC."
-warn "Undo = remove Honest Llama (wallet 1), pnpm demo:reset, redo R2 onward."
-say "Start TWO recordings: the browser (R4) and the Terminal 1 log (R9)."
+warn "Undo = pnpm demo:reset (pauses Honest Llama), then redo R2 onward."
+say "Start TWO recordings: the browser (R4) and the stack window (R9)."
 step "Switch Freighter to wallet 2."
 step "/list -> Name: CheapClaude"
 step "Endpoint: http://localhost:4001/cheapmax/v1/chat/completions  (price \$0.012)"
 step "Model: Claude Opus 5.5.   Stake: 5.  Approve in Freighter."
 step "Audit runs; card turns red: SLASHED · matched qwen2.5:0.5b (red for 60 s)."
-step "Terminal 1 shows: closest qwen2.5:0.5b (1.000). Stop both recordings."
+step "The stack window shows: closest qwen2.5:0.5b (1.000). Stop both recordings."
 if confirm "Ready to start recording R4?"; then
   open_url "http://localhost:3000/list"
 else
@@ -293,11 +370,16 @@ step "Show the registry contract on stellar.expert. Stop."
 pause "R5 saved? Enter to continue"
 
 stage "R6 · Agent terminal (40 s)"
-say "In Terminal 2, big font, start recording, then run:"
-step "pnpm agent"
-say "     \$0.50 budget, picks Provider A (the MiniMax listing), prints the tx."
-step "pnpm agent --try-overspend"
-say "     Expect: REJECTED: payment … exceeds remaining budget. Stop."
+say "Bump this terminal's font (about 20 pt) and start recording it."
+say "  1. \$0.50 budget, picks Provider A (the MiniMax listing), prints the tx."
+say "  2. Expect: REJECTED: payment … exceeds remaining budget."
+if confirm "Recording? Run the agent now?"; then
+  run_cmd "pnpm agent"
+  pause "Enter for the overspend attempt"
+  run_cmd "pnpm agent --try-overspend"
+else
+  SKIPPED+=("R6")
+fi
 pause "R6 saved? Enter to continue"
 
 stage "R7 · Weather API vs MET Norway (1-2 min)"
@@ -315,8 +397,8 @@ step "MET Plus Demo -> http://localhost:4006/weather/v1/forecast"
 say "     All 11 fields + extra fields pollenRisk, outdoorRecommendation -> PASS, extras unverified."
 step "Dashboard -> Trust & audits -> View MET Norway evidence (values, deltas, tolerances). Stop."
 note "Full field lists and expected grades: docs/demo-runbook.md, MET Norway walkthrough."
-note "Weather listings are never slashed, so they stay listed: before another demo:reset,"
-note "remove all three from Dashboard with the wallet that listed them."
+note "Weather listings are never slashed; the next demo:reset pauses them (stakes stay"
+note "with the wallet that listed them, withdrawable from Dashboard)."
 pause "R7 saved? Enter to continue"
 
 stage "R8 · Dashboard (10 s)"
@@ -325,9 +407,10 @@ step "Start recording. Show earnings and spend. Stop."
 pause "R8 saved? Enter to continue"
 
 stage "R10 · B-roll: code (15 s)"
-step "Record in your editor, 15 s total:"
-say "  1. contracts/registry/src/lib.rs   -> slash with #[only_role(caller, \"auditor\")]"
-say "  2. apps/auditor/src/scoring.ts     -> computeVerdict"
+say "Opening both files in your editor at the lines to film:"
+open_code contracts/registry/src/lib.rs 'only_role(caller, "auditor")'
+open_code apps/auditor/src/scoring.ts 'export function computeVerdict'
+step "Record about 7 s on each: slash guarded by the auditor role, then computeVerdict."
 pause "R10 saved? Enter to continue"
 
 stage "Motion pieces M1–M6"
@@ -335,8 +418,7 @@ step "Replace PROBES in video/m3/compositions/m3-fingerprint.html with"
 say "     closest.margins from the new CheapClaude audit in data/audits.json."
 step "Set each M5 box (x, y, w, h on the 1920x1080 recording) in video/m5/batch.json."
 if confirm "Render every piece now (sh video/render.sh)?"; then
-  (cd video && sh render.sh) || warn "render failed"
-  say "Output: video/out/"
+  run_cmd "cd video && sh render.sh" && say "Output: video/out/"
 else
   SKIPPED+=("sh video/render.sh")
 fi

@@ -1,6 +1,7 @@
 // Resets the marketplace to the start of the demo:
 //  0. every local Ollama model is loaded (and kept loaded 30 min), so nothing cold-starts on camera
-//  1. the admin unregisters every listing (remaining stakes are refunded to their providers)
+//  1. the admin unregisters every legacy listing (stakes refunded); the auditor pauses the per-ID
+//     listings still active (off the catalog, stake kept: their owner withdraws it from Dashboard)
 //  2. Provider A (honest MiniMax) is registered and staked, topped up from the agent wallet if short
 //  3. the auditor audits Provider A once, so the video opens with a green, scored listing
 //  4. the agent's spent budget and the audit log are cleared
@@ -11,7 +12,7 @@ import path from 'node:path';
 import { Asset, Horizon, Keypair, Networks, Operation, TransactionBuilder } from '@stellar/stellar-sdk';
 import { EMBED_MODEL, loadConfig, ollamaModelsToWarm, REPO_ROOT, seedListings, endpointFor } from '@tb/config';
 import { createRegistryClient, toAtomic } from '@tb/registry-client';
-import { blockingMessage, resetPlan, sharedHistoryBlock } from './reset-plan.ts';
+import { pausedLine, resetPlan, sharedHistoryBlock } from './reset-plan.ts';
 import { createCommunityStore } from '@tb/community';
 import { warmOllama } from './warm-ollama.ts';
 
@@ -50,9 +51,9 @@ for (const w of await warmOllama(cfg.ollamaUrl, ollamaModelsToWarm(cfg.minimaxMo
 
 // 1. clear the registry
 const plan = resetPlan(await reg.list());
-if (plan.blocking.length) {
-  console.error(blockingMessage(plan.blocking));
-  process.exit(1);
+for (const l of plan.pause) {
+  await reg.pauseEndpoint!(cfg.keys.auditor.secret, l.id!);
+  console.log(pausedLine(l));
 }
 for (const l of plan.unregister) {
   const r = await reg.unregister(cfg.keys.admin.secret, l.provider);
