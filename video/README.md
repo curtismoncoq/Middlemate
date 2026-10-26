@@ -18,7 +18,7 @@ Each folder is its own HyperFrames project (`index.html` mounts the scenes in `c
 ```
 cd video
 sh render.sh                          # every piece into out/
-TEAM="Name One · Name Two" sh render.sh  # same, with the team names on the M6 end card
+TEAM="…" sh render.sh                 # override the M6 team line (default: Curtis · Mathieu · Mohamed)
 PIECE=m3 npm run preview              # Studio preview of one piece (edit timing live)
 npm run check                         # the HyperFrames check on every piece
 ```

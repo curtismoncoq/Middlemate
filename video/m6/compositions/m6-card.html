@@ -36,7 +36,6 @@
     #m6k-built p { font: 600 36px 'Barlow', sans-serif; color: var(--color-muted); }
     #m6k-built ul { display: flex; gap: 0 26px; }
     #m6k-built li { list-style: none; font: 700 46px/1 'Barlow Condensed', sans-serif; text-transform: uppercase; color: var(--color-ink); }
-    #m6k-team { position: absolute; left: 1520px; top: 880px; width: 330px; font: 600 38px/1.35 'Barlow', sans-serif; color: var(--color-ink); }
   </style>
   <div id="root" data-composition-id="m6-card" data-width="1920" data-height="1080">
     <div id="m6k-stage" class="clip" data-start="0" data-duration="5.8" data-layout-allow-overlap>
@@ -47,13 +46,10 @@
       <div id="m6k-built"><p>Built on Stellar</p><ul>
         <li id="m6k-b1">x402</li><li id="m6k-b2">Soroban</li><li id="m6k-b3">OpenZeppelin Stellar Contracts</li><li id="m6k-b4">USDC</li><li id="m6k-b5">Freighter</li>
       </ul></div>
-      <p id="m6k-team"></p>
     </div>
   </div>
   <script>
     const tl = gsap.timeline({ paused: true });
-    const vars = (window.__hyperframes && window.__hyperframes.getVariables && window.__hyperframes.getVariables()) || {};
-    document.querySelector('#m6k-team').textContent = vars.team || '';
     // the mark: per letter, 0.06 s apart, from a faint, slightly blurred state
     tl.fromTo('.m6k-l', { opacity: 0.15, filter: 'blur(6px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.18, ease: 'power2.out', stagger: 0.06 }, 0.05);
     tl.fromTo('#m6k-tag', { opacity: 0, filter: 'blur(8px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.2, ease: 'power2.out' }, 0.75);
@@ -62,7 +58,7 @@
     ['#m6k-s0', '#m6k-s1', '#m6k-s2'].forEach((id, i) => tl.fromTo(id, { y: 140, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: 'expo.out' }, 0.35 + i * 0.09));
     tl.fromTo('#m6k-built p', { opacity: 0 }, { opacity: 1, duration: 0.15 }, 1.25);
     ['#m6k-b1', '#m6k-b2', '#m6k-b3', '#m6k-b4', '#m6k-b5'].forEach((id, i) => tl.fromTo(id, { opacity: 0, filter: 'blur(8px)' }, { opacity: 1, filter: 'blur(0px)', duration: 0.13, ease: 'power4.out' }, 1.35 + i * 0.08));
-    tl.fromTo('#m6k-team', { opacity: 0 }, { opacity: 1, duration: 0.2 }, 1.9);
+
     window.__timelines['m6-card'] = tl;
   </script>
 </template>
