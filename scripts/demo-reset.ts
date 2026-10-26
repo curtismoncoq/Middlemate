@@ -11,7 +11,8 @@ import path from 'node:path';
 import { Asset, Horizon, Keypair, Networks, Operation, TransactionBuilder } from '@stellar/stellar-sdk';
 import { EMBED_MODEL, loadConfig, ollamaModelsToWarm, REPO_ROOT, seedListings, endpointFor } from '@tb/config';
 import { createRegistryClient, toAtomic } from '@tb/registry-client';
-import { blockingMessage, resetPlan } from './reset-plan.ts';
+import { blockingMessage, resetPlan, sharedHistoryBlock } from './reset-plan.ts';
+import { createCommunityStore } from '@tb/community';
 import { warmOllama } from './warm-ollama.ts';
 
 const USDC = new Asset('USDC', 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5');
@@ -33,6 +34,13 @@ async function pay(from: Keypair, to: string, amount: number) {
     .build();
   tx.sign(from);
   return (await horizon.submitTransaction(tx)).hash;
+}
+
+// Shared (Supabase) audit history can't be cleared: stop before anything changes.
+const shared = sharedHistoryBlock(!!createCommunityStore(cfg), process.argv);
+if (shared) {
+  console.error(shared);
+  process.exit(1);
 }
 
 // 0. warm Ollama
